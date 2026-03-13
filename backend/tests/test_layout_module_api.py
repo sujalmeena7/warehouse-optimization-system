@@ -237,3 +237,39 @@ class TestLayoutModuleApi:
 
         analytics_response = api_client.get(f"{BASE_URL}/api/analytics/trends", params={"role": "Staff"})
         assert analytics_response.status_code == 403
+
+    def test_mixed_timestamp_formats_do_not_crash_optimizer(self, api_client, reset_layout):
+        seed_response = api_client.post(
+            f"{BASE_URL}/api/layout/containers/sample",
+            params={"role": "Manager"},
+            json={"replace_existing": True},
+        )
+        assert seed_response.status_code == 200
+
+        add_response = api_client.post(
+            f"{BASE_URL}/api/layout/containers",
+            params={"role": "Manager"},
+            json={
+                "containers": [
+                    {
+                        "container_id": "BUG-NAIVE-LOCAL-01",
+                        "size": "Medium",
+                        "weight": 44,
+                        "access_frequency": "High",
+                        "arrival_time": "2026-02-10T10:30",
+                    }
+                ]
+            },
+        )
+        assert add_response.status_code == 200
+
+        state_response = api_client.get(f"{BASE_URL}/api/layout/state", params={"role": "Manager"})
+        assert state_response.status_code == 200
+
+        retrieval_response = api_client.post(
+            f"{BASE_URL}/api/layout/retrieve",
+            params={"role": "Manager"},
+            json={"container_id": "BUG-NAIVE-LOCAL-01"},
+        )
+        assert retrieval_response.status_code == 200
+        assert retrieval_response.json()["found"] is True

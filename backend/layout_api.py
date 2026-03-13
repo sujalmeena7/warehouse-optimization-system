@@ -126,9 +126,17 @@ def parse_time(value: Optional[str]) -> datetime:
     if not value:
         return datetime.now(timezone.utc)
     try:
-        return datetime.fromisoformat(value)
+        normalized = value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
     except ValueError:
         return datetime.now(timezone.utc)
+
+
+def normalize_arrival_iso(value: Optional[str]) -> str:
+    return parse_time(value).isoformat()
 
 
 def can_stack(container: Dict, stack: List[Dict], max_height: int) -> bool:
@@ -453,7 +461,7 @@ def create_layout_router(db, require_permission: Callable[[str, str], None]) -> 
                     "size": item.size,
                     "weight": item.weight,
                     "access_frequency": item.access_frequency,
-                    "arrival_time": item.arrival_time or utc_now_iso(),
+                    "arrival_time": normalize_arrival_iso(item.arrival_time),
                 }
             )
 
