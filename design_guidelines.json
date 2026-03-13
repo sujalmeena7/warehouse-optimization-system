@@ -1,268 +1,164 @@
 {
-  "project_name": "Warehouse Optimization System",
+  "project_name": "Warehouse Optimization System - Layout Module",
   "design_philosophy": {
-    "theme": "Swiss Industrial Utility",
-    "core_concept": "The Digital Control Tower",
-    "emotional_tone": "Precise, Efficient, Real-time, Authoritative",
-    "visual_style": "High-contrast, data-dense, technical, safety-inspired visibility",
-    "mode": "light"
+    "core_identity": "Swiss Industrial Utility",
+    "principles": [
+      "Function Over Decoration: Every pixel must serve a purpose.",
+      "Data Density: High information density with clear hierarchy.",
+      "Visual Precision: Perfect alignment, consistent spacing (4px grid base).",
+      "Tactile Feedback: Interactive elements must feel responsive and solid."
+    ],
+    "hall_of_shame": [
+      "No generic 'Bootstrap' grids.",
+      "No gradients on data visualization (use solid colors for clarity).",
+      "No rounded corners > 8px on internal data components (keep it technical).",
+      "Avoid 'cute' illustrations; use schematic or photographic imagery."
+    ]
   },
   "typography": {
     "font_family": {
-      "headings": "Chivo, sans-serif",
+      "heading": "Chivo, sans-serif",
       "body": "IBM Plex Sans, sans-serif",
-      "mono": "JetBrains Mono, monospace"
+      "code": "JetBrains Mono, monospace"
     },
     "scale": {
-      "h1": "text-4xl md:text-5xl font-bold tracking-tight leading-tight",
-      "h2": "text-3xl font-semibold tracking-tight",
-      "h3": "text-2xl font-semibold tracking-normal",
-      "h4": "text-xl font-medium tracking-normal",
-      "body_lg": "text-lg leading-relaxed",
-      "body_base": "text-base leading-normal",
-      "body_sm": "text-sm leading-snug",
-      "caption": "text-xs font-mono uppercase tracking-wider text-muted-foreground"
-    },
-    "weights": {
-      "regular": 400,
-      "medium": 500,
-      "semibold": 600,
-      "bold": 700
+      "h1": "text-4xl font-bold tracking-tight",
+      "h2": "text-2xl font-semibold tracking-tight",
+      "h3": "text-xl font-medium",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm text-slate-500",
+      "tiny": "text-xs font-mono uppercase tracking-wider"
     }
   },
   "colors": {
     "palette": {
-      "primary": {
-        "DEFAULT": "#0F172A",
-        "foreground": "#F8FAFC",
-        "hover": "#1E293B",
-        "description": "Deep Slate for solid, grounded primary actions"
-      },
-      "secondary": {
-        "DEFAULT": "#F1F5F9",
-        "foreground": "#0F172A",
-        "hover": "#E2E8F0",
-        "description": "Light Slate for secondary actions"
-      },
-      "accent": {
-        "DEFAULT": "#F97316",
-        "foreground": "#FFFFFF",
-        "hover": "#EA580C",
-        "description": "Safety Orange for critical actions, alerts, and active states"
-      },
-      "success": {
-        "DEFAULT": "#10B981",
-        "foreground": "#FFFFFF",
-        "description": "Emerald for optimized routes and stock healthy"
-      },
-      "warning": {
-        "DEFAULT": "#F59E0B",
-        "foreground": "#FFFFFF",
-        "description": "Amber for low stock and delays"
-      },
-      "destructive": {
-        "DEFAULT": "#EF4444",
-        "foreground": "#FFFFFF",
-        "description": "Red for critical errors and delete actions"
-      },
-      "background": {
-        "DEFAULT": "#F8FAFC",
-        "paper": "#FFFFFF",
-        "subtle": "#F1F5F9"
-      },
-      "border": {
-        "DEFAULT": "#E2E8F0",
-        "strong": "#CBD5E1"
-      }
+      "background": "#F8FAFC",
+      "foreground": "#0F172A",
+      "card": "#FFFFFF",
+      "border": "#E2E8F0",
+      "primary": "#0F172A",
+      "primary_foreground": "#F8FAFC",
+      "muted": "#F1F5F9",
+      "muted_foreground": "#64748B",
+      "accent": "#F97316",
+      "accent_foreground": "#FFFFFF",
+      "destructive": "#EF4444",
+      "success": "#22C55E",
+      "warning": "#F59E0B",
+      "info": "#3B82F6"
     },
-    "gradients": {
-      "primary_shine": "linear-gradient(135deg, #0F172A 0%, #1E293B 100%)",
-      "accent_glow": "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-      "glass": "linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 100%)"
-    }
-  },
-  "layout_system": {
-    "grid_structure": "Bento Grid Mode B (High Density)",
-    "container_padding": {
-      "desktop": "p-6 md:p-8 lg:p-12",
-      "mobile": "p-4"
-    },
-    "spacing_scale": {
-      "xs": "gap-2",
-      "sm": "gap-4",
-      "md": "gap-6",
-      "lg": "gap-8",
-      "xl": "gap-12"
-    },
-    "border_radius": {
-      "sm": "rounded-sm",
-      "md": "rounded",
-      "lg": "rounded-md",
-      "xl": "rounded-lg",
-      "full": "rounded-full"
-    },
-    "z_index": {
-      "toast": 50,
-      "modal": 40,
-      "dropdown": 30,
-      "sticky_nav": 20,
-      "content": 10
+    "functional": {
+      "grid_bg": "#F8FAFC",
+      "grid_line": "#E2E8F0",
+      "stack_low": "#CBD5E1",
+      "stack_medium": "#94A3B8",
+      "stack_high": "#475569",
+      "stack_full": "#1E293B",
+      "target_container": "#2563EB",
+      "path_highlight": "#FFEDD5",
+      "path_border": "#F97316"
     }
   },
   "components": {
-    "cards": {
-      "style": "Flat, 1px border, no shadow by default",
-      "classes": "bg-white border border-border rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md hover:border-slate-300",
-      "header_classes": "px-6 py-4 border-b border-border bg-slate-50/50 flex items-center justify-between",
-      "content_classes": "p-6"
-    },
     "buttons": {
-      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 rounded-md font-medium transition-transform active:scale-95 shadow-sm",
-      "secondary": "bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2 rounded-md font-medium transition-transform active:scale-95",
-      "outline": "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 rounded-md font-medium transition-colors",
-      "ghost": "hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 rounded-md font-medium transition-colors",
-      "icon": "h-10 w-10 p-0 rounded-md flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors"
+      "primary": "bg-slate-900 text-white hover:bg-slate-800 rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2",
+      "secondary": "bg-white text-slate-900 border border-slate-200 hover:bg-slate-100 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+      "ghost": "hover:bg-slate-100 text-slate-700 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+      "destructive": "bg-red-500 text-white hover:bg-red-600 rounded-md px-4 py-2 text-sm font-medium"
     },
     "inputs": {
-      "style": "Technical, high contrast focus",
-      "classes": "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      "default": "flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+      "grid_cell": "w-12 h-12 text-center border border-slate-200 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 rounded-sm"
     },
-    "tables": {
-      "style": "Data-dense, alternating rows",
-      "wrapper_classes": "w-full overflow-auto rounded-md border border-border",
-      "table_classes": "w-full caption-bottom text-sm",
-      "header_classes": "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted h-10 px-4 text-left align-middle font-medium text-muted-foreground bg-slate-50",
-      "row_classes": "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted odd:bg-slate-50/30",
-      "cell_classes": "p-4 align-middle [&:has([role=checkbox])]:pr-0 font-mono text-xs md:text-sm"
+    "cards": {
+      "default": "rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm",
+      "metric": "p-6 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors"
     },
-    "status_badges": {
-      "success": "inline-flex items-center rounded-full border border-transparent bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-      "warning": "inline-flex items-center rounded-full border border-transparent bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-      "destructive": "inline-flex items-center rounded-full border border-transparent bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-      "neutral": "inline-flex items-center rounded-full border border-transparent bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+    "grid": {
+      "container": "relative w-full overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-8",
+      "cell": "aspect-square border border-slate-200 bg-white flex items-center justify-center text-xs font-mono hover:bg-slate-50 cursor-pointer transition-colors relative",
+      "cell_occupied": "bg-slate-100 border-slate-300",
+      "cell_selected": "ring-2 ring-orange-500 z-10",
+      "cell_target": "bg-blue-50 border-blue-200 ring-2 ring-blue-500 z-10"
     }
   },
-  "motion": {
-    "page_transition": {
-      "initial": { "opacity": 0, "y": 10 },
-      "animate": { "opacity": 1, "y": 0 },
-      "exit": { "opacity": 0, "y": -10 },
-      "transition": { "duration": 0.3, "ease": "easeOut" }
+  "layout_structure": {
+    "page_layout": "flex h-screen flex-col md:flex-row bg-slate-50",
+    "sidebar_width": "w-72",
+    "content_area": "flex-1 p-6 overflow-y-auto",
+    "dashboard_grid": "grid gap-6 md:grid-cols-12",
+    "grid_visualizer_container": "col-span-12 lg:col-span-8 xl:col-span-9 h-[600px] flex flex-col",
+    "controls_sidebar": "col-span-12 lg:col-span-4 xl:col-span-3 space-y-6"
+  },
+  "visual_enhancers": {
+    "shadows": {
+      "sm": "shadow-sm",
+      "md": "shadow-md",
+      "lg": "shadow-lg",
+      "focus": "shadow-[0_0_0_2px_rgba(15,23,42,0.1)]"
     },
-    "list_stagger": {
-      "container": {
-        "hidden": { "opacity": 0 },
-        "show": {
-          "opacity": 1,
-          "transition": {
-            "staggerChildren": 0.05
-          }
-        }
-      },
-      "item": {
-        "hidden": { "opacity": 0, "y": 10 },
-        "show": { "opacity": 1, "y": 0 }
-      }
+    "borders": {
+      "default": "border border-slate-200",
+      "active": "border-slate-900",
+      "dashed": "border-dashed border-slate-300"
     },
-    "hover_lift": "hover:-translate-y-1 transition-transform duration-200"
+    "animations": {
+      "hover_lift": "hover:-translate-y-0.5 transition-transform duration-200",
+      "fade_in": "animate-in fade-in zoom-in duration-300",
+      "slide_up": "animate-in slide-in-from-bottom-4 duration-500"
+    }
+  },
+  "functionality_specs": {
+    "grid_config": {
+      "default_rows": 10,
+      "default_cols": 10,
+      "max_rows": 20,
+      "max_cols": 20,
+      "cell_size_px": 48
+    },
+    "stacking_rules": {
+      "max_height": 5,
+      "visual_representation": "Heatmap intensity (Darker = Higher) or Badge Counter"
+    },
+    "simulation": {
+      "step_delay_ms": 500,
+      "visual_step_highlight": "Highlight current cell and target cell with connecting line"
+    }
   },
   "assets": {
-    "images": {
-      "warehouse_hero": {
-        "url": "https://images.pexels.com/photos/7019311/pexels-photo-7019311.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "alt": "Warehouse worker reaching for stock",
-        "category": "Hero/Dashboard"
-      },
-      "worker_avatar": {
-        "url": "https://images.unsplash.com/photo-1768554058655-ffc14e476826?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwzfHxsb2dpc3RpY3MlMjB3b3JrZXIlMjBwb3J0cmFpdCUyMHByb2Zlc3Npb25hbHxlbnwwfHx8fDE3NzMyMjYwMzh8MA&ixlib=rb-4.1.0&q=85",
-        "alt": "Logistics Professional",
-        "category": "User/Profile"
-      },
-      "product_box": {
-        "url": "https://images.unsplash.com/photo-1572010696997-c73e95aeebe8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODl8MHwxfHNlYXJjaHw0fHxjYXJkYm9hcmQlMjBzaGlwcGluZyUyMGJveCUyMGlzb2xhdGVkfGVufDB8fHx8MTc3MzIyNjA1Mnww&ixlib=rb-4.1.0&q=85",
-        "alt": "Fragile Box",
-        "category": "Inventory/Product"
-      },
-      "product_tool": {
-        "url": "https://images.unsplash.com/photo-1770763233593-74dfd0da7bf0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwxfHxpbmR1c3RyaWFsJTIwcG93ZXIlMjBkcmlsbCUyMHRvb2x8ZW58MHx8fHwxNzczMjI2MDUzfDA&ixlib=rb-4.1.0&q=85",
-        "alt": "Power Drill",
-        "category": "Inventory/Product"
-      }
-    },
     "icons": {
       "library": "lucide-react",
-      "style": "stroke-width-2 w-5 h-5"
-    }
-  },
-  "page_guidelines": {
-    "dashboard": {
-      "layout": "Grid-based control center",
-      "sections": [
-        "KPI Cards (Top row, 4 cols)",
-        "Recent Orders (Left col, 2 row span)",
-        "Picking Efficiency Chart (Right col, 2 row span)",
-        "Low Stock Alerts (Bottom row)"
-      ],
-      "focus": "At-a-glance status, immediate action items"
+      "primary_set": ["LayoutGrid", "Box", "ArrowRight", "Play", "Pause", "RotateCcw", "Settings", "Layers", "Search", "AlertCircle"]
     },
-    "inventory": {
-      "layout": "Split view (List + Detail Panel)",
-      "features": [
-        "Search/Filter Bar (Sticky top)",
-        "Dense Data Table (Sortable columns)",
-        "Quick Edit (Inline or Side Sheet)"
-      ]
-    },
-    "picking_routes": {
-      "layout": "Map focused",
-      "visualization": "2D Warehouse Grid (Canvas/SVG) with highlighted path",
-      "features": "Step-by-step picking instructions list on the side"
-    },
-    "orders": {
-      "layout": "Kanban or List view toggle",
-      "features": "Drag-and-drop status updates, detailed order modal"
-    }
-  },
-  "instructions_to_main_agent": {
-    "general": [
-      "Use the 'Swiss Industrial' theme: lots of white space, strong borders, bold typography.",
-      "Implement the 'Bento Grid' for the dashboard using CSS Grid.",
-      "Use 'lucide-react' for all icons.",
-      "Ensure all interactive elements have 'data-testid'.",
-      "Use 'sonner' for toast notifications.",
-      "Do NOT use gradients for backgrounds, stick to flat colors or subtle patterns.",
-      "Use 'recharts' for all charts/graphs."
-    ],
-    "components": [
-      "Customize Shadcn components to match the 'Safety Orange' and 'Slate' palette.",
-      "Override default Shadcn radii to 'rounded-md' or 'rounded-lg' but keep buttons slightly sharper.",
-      "Use 'Sheet' component for mobile navigation and detailed views.",
-      "Use 'Command' component for global search."
-    ],
-    "animations": [
-      "Use 'framer-motion' for page transitions and list staggering.",
-      "Add hover effects to all cards and buttons."
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1772300704502-410f0fbd43bb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwzfHx3YXJlaG91c2UlMjBpbmR1c3RyaWFsJTIwZW1wdHklMjBmbG9vciUyMGNvbnRhaW5lciUyMHN0YWNrJTIwZm9ya2xpZnQlMjBtaW5pbWFsaXN0fGVufDB8fHx8MTc3MzQxMjY0Nnww&ixlib=rb-4.1.0&q=85",
+        "description": "Empty Warehouse Interior (Hero Background)",
+        "category": "hero"
+      }
     ]
   },
-  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
-    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
-    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients",
-    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
-    "Create depth through layered design elements with z-index hierarchy",
-    "Use glass-morphism effects with backdrop filters (12-24px blur)",
-    "You MUST NOT apply universal transition. Eg: 'transition: all'. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms",
-    "You MUST NOT center align the app container, ie do not add '.App { text-align: center; }' in the css file. This disrupts the human natural reading flow of text",
-    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style",
-    "NEVER: use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯📚🎭🎬🎪🎉🎊🎁🎀🎂🍰🎈🎨🎰💰💵💳🏦💎🪙💸🤑📊📈📉💹🔢🏆🥇 etc for icons.",
-    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
-    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
-    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
-    "Main agent relies on these image URLs. Missing categories (especially sponsor logos) = main agent will use placeholder text which is FORBIDDEN",
-    "Prioritize using pre-existing components from src/components/ui when applicable",
-    "Create new components that match the style and conventions of existing components when needed",
-    "Examine existing components to understand the project's component patterns before creating new ones",
-    "Components MUST use named exports (export const ComponentName = ...)",
-    "Pages MUST use default exports (export default function PageName() {...})",
-    "Use 'sonner' for toasts. Sonner component are located in '/app/src/components/ui/sonner.tsx'"
+  "universal_guidelines": [
+    "Do not use gradients for data visualization; use solid colors for clarity.",
+    "Ensure all interactive elements have a focus state for accessibility.",
+    "Use 'Chivo' for headings and 'IBM Plex Sans' for body text.",
+    "Use 'JetBrains Mono' for all code, identifiers (SKUs, Coordinates), and tabular numbers.",
+    "Maintain the 'Swiss Industrial' aesthetic: generous whitespace, high contrast borders, minimal decoration.",
+    "All interactive elements must include 'data-testid' attributes.",
+    "Use 'sonner' for toast notifications."
+  ],
+  "instructions_to_main_agent": [
+    "1. INTEGRATION: Add 'Warehouse Layout' to the sidebar navigation in `AppShell.jsx`.",
+    "2. PAGE CREATION: Create a new page `WarehouseLayoutPage.jsx` at `/app/frontend/src/pages/`.",
+    "3. ROUTING: Add the route `/layout-optimization` to the main router.",
+    "4. STATE MANAGEMENT: Use `useState` or `useReducer` for the grid state (cells, stacks, simulation steps).",
+    "5. COMPONENT STRUCTURE:",
+    "   - `LayoutGridVisualizer`: The main grid component.",
+    "   - `LayoutControls`: Sidebar for grid size, strategy selection, and simulation controls.",
+    "   - `StackInspector`: A drawer or modal to view/edit containers in a selected cell.",
+    "   - `SimulationMetrics`: Cards showing cost, moves, and time.",
+    "6. ALGORITHM: Implement a basic 'Greedy' strategy interface in frontend logic (mockable) for now.",
+    "7. VISUALS: Use the defined colors (Slate/Orange/Blue) to represent empty, occupied, and target states.",
+    "8. TESTING: Ensure all new components have `data-testid` for the test agent."
   ]
 }
