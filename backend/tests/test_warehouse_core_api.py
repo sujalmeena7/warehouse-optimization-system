@@ -153,3 +153,55 @@ class TestWarehouseCoreApi:
         assert isinstance(data, list)
         assert len(data) > 0
         assert all(alert["severity"] == "critical" for alert in data)
+
+    def test_layout_configure_and_state(self, api_client, seeded):
+        config_response = api_client.post(
+            f"{BASE_URL}/api/layout/configure",
+            params={"role": "Manager"},
+            json={
+                "rows": 10,
+                "cols": 10,
+                "max_stack_height": 5,
+                "strategy": "greedy_access",
+                "clear_containers": True,
+            },
+        )
+        assert config_response.status_code == 200
+        configured = config_response.json()
+        assert configured["config"]["rows"] == 10
+        assert configured["config"]["max_stack_height"] == 5
+
+        state_response = api_client.get(f"{BASE_URL}/api/layout/state", params={"role": "Manager"})
+        assert state_response.status_code == 200
+        state = state_response.json()
+        assert len(state["grid"]) == 10
+        assert len(state["grid"][0]) == 10
+
+    def test_layout_seed_and_retrieval_simulation(self, api_client, seeded):
+        seed_response = api_client.post(
+            f"{BASE_URL}/api/layout/containers/sample",
+            params={"role": "Manager"},
+            json={"replace_existing": True},
+        )
+        assert seed_response.status_code == 200
+        seeded_layout = seed_response.json()
+        assert seeded_layout["total_containers"] > 0
+
+        retrieval_response = api_client.post(
+            f"{BASE_URL}/api/layout/retrieve",
+            params={"role": "Manager"},
+            json={"container_id": "CNT-1002"},
+        )
+        assert retrieval_response.status_code == 200
+        retrieval = retrieval_response.json()
+        assert retrieval["found"] is True
+        assert retrieval["estimated_retrieval_time"] > 0
+        assert isinstance(retrieval["steps"], list)
+
+    def test_layout_analytics_style_permission_for_staff(self, api_client, seeded):
+        # Staff can access layout module but cannot access analytics endpoint.
+        layout_response = api_client.get(f"{BASE_URL}/api/layout/state", params={"role": "Staff"})
+        assert layout_response.status_code == 200
+
+        analytics_response = api_client.get(f"{BASE_URL}/api/analytics/trends", params={"role": "Staff"})
+        assert analytics_response.status_code == 403

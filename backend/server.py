@@ -11,6 +11,7 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.middleware.cors import CORSMiddleware
+from layout_api import create_layout_router
 
 
 ROOT_DIR = Path(__file__).parent
@@ -32,6 +33,7 @@ ROLE_PERMISSIONS: Dict[str, Dict[str, bool]] = {
         "inventory": True,
         "orders": True,
         "routes": True,
+        "layout": True,
         "analytics": True,
         "alerts": True,
         "can_edit_inventory": True,
@@ -41,6 +43,7 @@ ROLE_PERMISSIONS: Dict[str, Dict[str, bool]] = {
         "inventory": True,
         "orders": True,
         "routes": True,
+        "layout": True,
         "analytics": True,
         "alerts": True,
         "can_edit_inventory": True,
@@ -50,6 +53,7 @@ ROLE_PERMISSIONS: Dict[str, Dict[str, bool]] = {
         "inventory": True,
         "orders": True,
         "routes": True,
+        "layout": True,
         "analytics": False,
         "alerts": True,
         "can_edit_inventory": False,
@@ -961,6 +965,7 @@ async def startup_seed() -> None:
 
 
 app.include_router(api_router)
+app.include_router(create_layout_router(db, require_permission))
 
 app.add_middleware(
     CORSMiddleware,

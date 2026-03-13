@@ -9,6 +9,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import InventoryPage from "@/pages/InventoryPage";
 import OrdersPage from "@/pages/OrdersPage";
 import RoutesPage from "@/pages/RoutesPage";
+import WarehouseLayoutPage from "@/pages/WarehouseLayoutPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import AlertsPage from "@/pages/AlertsPage";
 import { warehouseApi } from "@/lib/api";
@@ -99,6 +100,14 @@ function App() {
               element={
                 <PageGuard session={session} page="routes">
                   <RoutesPage user={session} />
+                </PageGuard>
+              }
+            />
+            <Route
+              path="layout-optimization"
+              element={
+                <PageGuard session={session} page="layout">
+                  <WarehouseLayoutPage user={session} />
                 </PageGuard>
               }
             />

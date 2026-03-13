@@ -65,4 +65,34 @@ export const warehouseApi = {
     });
     return response.data;
   },
+
+  async getLayoutState(role) {
+    const response = await client.get("/layout/state", roleQuery(role));
+    return response.data;
+  },
+
+  async getLayoutStrategies(role) {
+    const response = await client.get("/layout/strategies", roleQuery(role));
+    return response.data;
+  },
+
+  async configureLayout(role, payload) {
+    const response = await client.post("/layout/configure", payload, roleQuery(role));
+    return response.data;
+  },
+
+  async addLayoutContainers(role, payload) {
+    const response = await client.post("/layout/containers", payload, roleQuery(role));
+    return response.data;
+  },
+
+  async seedLayoutContainers(role, payload = { replace_existing: false }) {
+    const response = await client.post("/layout/containers/sample", payload, roleQuery(role));
+    return response.data;
+  },
+
+  async retrieveLayoutContainer(role, payload) {
+    const response = await client.post("/layout/retrieve", payload, roleQuery(role));
+    return response.data;
+  },
 };

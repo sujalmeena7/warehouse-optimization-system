@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Bell, Boxes, ChartNoAxesCombined, LogOut, MapPinned, Menu, PackageSearch, Truck } from "lucide-react";
+import { Bell, Boxes, ChartNoAxesCombined, LayoutGrid, LogOut, MapPinned, Menu, PackageSearch, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -10,6 +10,7 @@ const navItems = [
   { key: "inventory", label: "Inventory", to: "/inventory", icon: Boxes },
   { key: "orders", label: "Orders", to: "/orders", icon: Truck },
   { key: "routes", label: "Picking Routes", to: "/routes", icon: MapPinned },
+  { key: "layout", label: "Layout Optimization", to: "/layout-optimization", icon: LayoutGrid },
   { key: "analytics", label: "Analytics", to: "/analytics", icon: PackageSearch },
   { key: "alerts", label: "Alerts", to: "/alerts", icon: Bell },
 ];
