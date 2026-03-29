@@ -7,10 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import ExportButton from "@/components/export/ExportButton";
+import { useAuth } from "@/hooks/useAuth";
 import { warehouseApi } from "@/lib/api";
 import { canEditInventory } from "@/lib/permissions";
 
-export default function InventoryPage({ user }) {
+export default function InventoryPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -21,18 +24,23 @@ export default function InventoryPage({ user }) {
   const editable = useMemo(() => canEditInventory(user), [user]);
 
   const loadInventory = () => {
+    if (!user) return;
     warehouseApi
-      .getInventory(user.role, {
+      .getInventory({
         search: search || undefined,
         status: statusFilter === "all" ? undefined : statusFilter,
       })
-      .then(setItems);
+      .then(setItems)
+      .catch((error) => {
+        console.error("Failed to load inventory:", error);
+        setItems([]);
+      });
   };
 
   useEffect(() => {
     loadInventory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.role, statusFilter]);
+  }, [user, statusFilter]);
 
   const openEditor = (item) => {
     setEditingItem(item);
@@ -41,8 +49,8 @@ export default function InventoryPage({ user }) {
   };
 
   const saveInventory = async () => {
-    if (!editingItem) return;
-    await warehouseApi.updateInventory(user.role, editingItem.id, {
+    if (!editingItem || !user) return;
+    await warehouseApi.updateInventory(editingItem.id, {
       quantity: Number(quantity),
       reorder_threshold: Number(threshold),
     });
@@ -64,6 +72,7 @@ export default function InventoryPage({ user }) {
               <Input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 border-slate-300 pl-9" placeholder="Search SKU, name, zone" data-testid="inventory-search-input" />
             </div>
             <Button onClick={loadInventory} data-testid="inventory-search-button">Search</Button>
+            <ExportButton entityType="inventory" label="Export" />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">

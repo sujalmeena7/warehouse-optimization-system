@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { MapPin, Route } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { warehouseApi } from "@/lib/api";
 
 const WarehouseGrid = ({ steps }) => {
@@ -36,24 +37,26 @@ const WarehouseGrid = ({ steps }) => {
   );
 };
 
-export default function RoutesPage({ user }) {
+export default function RoutesPage() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState("");
   const [plan, setPlan] = useState(null);
 
   useEffect(() => {
-    warehouseApi.getOrders(user.role).then((response) => {
+    if (!user) return;
+    warehouseApi.getOrders().then((response) => {
       const pendingOrders = response.orders.filter((order) => order.status !== "shipped");
       setOrders(pendingOrders);
       if (pendingOrders.length > 0) {
         setSelectedOrderId(pendingOrders[0].id);
       }
     });
-  }, [user.role]);
+  }, [user]);
 
   const optimize = async () => {
-    if (!selectedOrderId) return;
-    const routePlan = await warehouseApi.getRoutePlan(user.role, selectedOrderId);
+    if (!selectedOrderId || !user) return;
+    const routePlan = await warehouseApi.getRoutePlan(selectedOrderId);
     setPlan(routePlan);
   };
 

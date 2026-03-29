@@ -1,71 +1,54 @@
-# Here are your Instructions
-# Getting Started with Create React App
+# Warehouse Optimization System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A robust, full-stack application for managing warehouse operations, featuring machine learning for demand forecasting, real-time inventory tracking, and dynamic visualizations.
 
-## Available Scripts
+## Features Added & Fixed
 
-In the project directory, you can run:
+- **Visual Dashboard**: A completely responsive and interactive dashboard displaying real-time KPIs (Total SKUs, Low Stock, Pick Efficiency).
+- **ML Demand Forecasting**: Integrated forecasting analytics that fall back to a reliable baseline when historical data is limited.
+- **Trend & Anomaly Detection**: Statistical analysis for tracking inventory trends over time.
+- **Robust Role-based Access (RBAC)**: Secure frontend routing derived strictly from backend JWT claims, preventing unauthorized access.
+- **RESTful API Architecture**: Built on FastAPI with correct router attachments, ensuring reliable connections between the React frontend and MongoDB backend.
 
-### `npm start`
+## Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Backend
+- **Python & FastAPI**: High-performance asynchronous API.
+- **Motor**: Asynchronous MongoDB driver.
+- **Pydantic**: Data validation and serialization.
+- **Scikit-Learn**: Machine learning models for inventory forecasting (Random Forest, Linear Regression).
+- **JWT Authentication**: Secure token-based user sessions.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Frontend
+- **React 19**: Modern component-based UI.
+- **TailwindCSS**: Utility-first CSS framework for rapid styling.
+- **Recharts**: Responsive charts and graphs for data visualization.
+- **Lucide React**: Clean, consistent icon set.
 
-### `npm test`
+## Getting Started
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Prerequisites
+- Python 3.10+
+- Node.js 18+ (with Yarn or npm)
+- MongoDB instance (running locally or via Atlas)
 
-### `npm run build`
+### Backend Setup
+1. Navigate to the `backend` directory.
+2. Install dependencies: `pip install -r requirements.txt` (Includes `email-validator` and `passlib[bcrypt]`).
+3. Set up your `.env` file with `MONGODB_URL`, `JWT_SECRET`, etc.
+4. Run the server: `python -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Frontend Setup
+1. Navigate to the `frontend` directory.
+2. Install dependencies: `npm install --legacy-peer-deps` or `yarn install`.
+3. Set your API base URL in `.env` (maps to `http://localhost:8000/api`).
+4. Start the application: `npm start` or `yarn start`.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Recent Bug Fixes
+- Resolved `warehouseApi.get is not a function` in the frontend API utilities.
+- Fixed 404 Not Found errors on Forecasting and Analytics endpoints by correcting FastAPI router registrations.
+- Gracefully handled `insufficient_data` ML responses in UI charts.
+- Fixed permission checks (`PageGuard`) incorrectly using `allowed_pages` instead of role-based maps.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+---
+*Built to optimize and streamline modern warehouse telemetry.*

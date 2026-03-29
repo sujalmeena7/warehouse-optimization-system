@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Debug</title>
+</head>
+<body>
+    <h1>Warehouse API Debug</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <button onclick="testInventory()">Test Inventory</button>
+    <pre id="output"></pre>
+    
+    <script>
+        const output = document.getElementById('output');
+        let token = null;
+        
+        async function testLogin() {
+            output.textContent = 'Logging in...';
+            try {
+                const res = await fetch('http://localhost:8000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@warehouse.com',
+                        password: 'password'
+                    })
+                });
+                const data = await res.json();
+                token = data.access_token;
+                output.textContent = `✓ Login Success\nToken: ${token.substring(0, 50)}...`;
+            } catch (e) {
+                output.textContent = `✗ Login Failed: ${e.message}`;
+            }
+        }
+        
+        async function testInventory() {
+            if (!token) {
+                output.textContent = '✗ No token. Click "Test Login" first';
+                return;
+            }
+            output.textContent = 'Fetching inventory...';
+            try {
+                const res = await fetch('http://localhost:8000/api/inventory', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                output.textContent = `✓ Success! Got ${data.length} items:\n${JSON.stringify(data.slice(0,1), null, 2)}`;
+            } catch (e) {
+                output.textContent = `✗ Failed: ${e.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

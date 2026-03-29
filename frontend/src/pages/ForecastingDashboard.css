@@ -1,0 +1,155 @@
+.forecasting-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.dashboard-header h1 {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.forecasting-controls {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.controls-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  align-items: flex-end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+}
+
+.sku-input,
+.days-select {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  background: white;
+  color: #333;
+}
+
+.sku-input {
+  min-width: 200px;
+}
+
+.sku-input:focus,
+.days-select:focus {
+  outline: none;
+  border-color: #0066cc;
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+}
+
+.submit-btn {
+  padding: 10px 24px;
+  background: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  align-self: flex-end;
+}
+
+.submit-btn:hover {
+  background: #0052a3;
+}
+
+.submit-btn:active {
+  transform: scale(0.98);
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.dashboard-grid.two-col {
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+}
+
+@media (max-width: 1200px) {
+  .dashboard-grid.two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card-container {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+}
+
+.card-container > div {
+  padding: 0;
+}
+
+.empty-state {
+  background: #f9f9f9;
+  border: 2px dashed #ddd;
+}
+
+.empty-content {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+  font-size: 16px;
+}
+
+.empty-content p {
+  margin: 8px 0;
+}
+
+.empty-content p:first-child {
+  font-size: 18px;
+}
+
+@media (max-width: 768px) {
+  .controls-form {
+    grid-template-columns: 1fr;
+  }
+
+  .submit-btn {
+    width: 100%;
+  }
+
+  .dashboard-header h1 {
+    font-size: 24px;
+  }
+}

@@ -1,0 +1,164 @@
+.saved-filters {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.filters-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.filters-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.toggle-form-button {
+  padding: 6px 12px;
+  background: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.toggle-form-button:hover {
+  background: #0052a3;
+}
+
+.save-filter-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 15px;
+  background: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.save-filter-form input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.save-button {
+  padding: 8px 16px;
+  background: #00aa44;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.save-button:hover {
+  background: #008833;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 10px 12px;
+  border-radius: 4px;
+  border-left: 3px solid #c33;
+  margin-bottom: 15px;
+  font-size: 13px;
+}
+
+.loading,
+.no-filters {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+  font-size: 13px;
+}
+
+.filters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.filter-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.filter-item:hover {
+  border-color: #ddd;
+  background: #f9f9f9;
+}
+
+.filter-info {
+  flex: 1;
+}
+
+.filter-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.filter-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.use-button,
+.delete-button {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.use-button {
+  background: #e6f2ff;
+  color: #0066cc;
+}
+
+.use-button:hover {
+  background: #0066cc;
+  color: white;
+}
+
+.delete-button {
+  background: #ffe6e6;
+  color: #cc0000;
+}
+
+.delete-button:hover {
+  background: #cc0000;
+  color: white;
+}

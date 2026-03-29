@@ -1,0 +1,150 @@
+.recommendation-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #ddd;
+}
+
+.recommendation-card.loading,
+.recommendation-card.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  min-height: 200px;
+  color: #999;
+  font-size: 14px;
+}
+
+.recommendation-card.error {
+  background: #fee;
+  color: #c33;
+  border-left-color: #c33;
+}
+
+.recommendation-card.urgency-high {
+  border-left-color: #cc0000;
+  background: #ffe6e6;
+}
+
+.recommendation-card.urgency-medium {
+  border-left-color: #ff9900;
+  background: #fff4e6;
+}
+
+.recommendation-card.urgency-low {
+  border-left-color: #00aa44;
+  background: #e6ffe6;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.urgency-icon {
+  flex-shrink: 0;
+}
+
+.recommendation-card.urgency-high .urgency-icon {
+  color: #cc0000;
+}
+
+.recommendation-card.urgency-medium .urgency-icon {
+  color: #ff9900;
+}
+
+.recommendation-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.rec-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.rec-row:last-of-type {
+  border-bottom: none;
+}
+
+.rec-row.highlight {
+  padding: 15px 12px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  margin: 10px 0;
+  font-weight: 600;
+}
+
+.rec-label {
+  color: #666;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rec-value {
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rec-value.urgency-high {
+  color: #cc0000;
+}
+
+.rec-value.urgency-medium {
+  color: #ff9900;
+}
+
+.rec-value.urgency-low {
+  color: #00aa44;
+}
+
+.rec-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.1);
+  margin: 10px 0;
+}
+
+.rec-status {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.critical {
+  background: rgba(204, 0, 0, 0.1);
+  color: #cc0000;
+}
+
+.status-badge.warning {
+  background: rgba(255, 153, 0, 0.1);
+  color: #ff9900;
+}
+
+.status-badge.healthy {
+  background: rgba(0, 170, 68, 0.1);
+  color: #00aa44;
+}

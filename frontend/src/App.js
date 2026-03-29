@@ -4,7 +4,10 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom
 import { ThemeProvider } from "next-themes";
 import { Toaster, toast } from "@/components/ui/sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { AuthProvider, AuthContext } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { LoginPage } from "@/pages/LoginPage";
+import RegisterPage from "@/pages/RegisterPage";
 import DashboardPage from "@/pages/DashboardPage";
 import InventoryPage from "@/pages/InventoryPage";
 import OrdersPage from "@/pages/OrdersPage";
@@ -12,125 +15,211 @@ import RoutesPage from "@/pages/RoutesPage";
 import WarehouseLayoutPage from "@/pages/WarehouseLayoutPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import AlertsPage from "@/pages/AlertsPage";
+import AdminUsersPage from "@/pages/AdminUsersPage";
+import ImportPage from "@/pages/ImportPage";
+import SearchPage from "@/pages/SearchPage";
+import NotificationCenter from "@/pages/NotificationCenter";
+import ForecastingDashboard from "@/pages/ForecastingDashboard";
+import AnalyticsDashboard from "@/pages/AnalyticsDashboard";
 import { warehouseApi } from "@/lib/api";
 import { canAccessPage } from "@/lib/permissions";
 
-const SESSION_KEY = "warehouse-session";
-
-const ProtectedLayout = ({ session, onLogout }) => {
-  if (!session) {
+const ProtectedLayout = () => {
+  const { user } = useAuth();
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
   return (
-    <AppShell user={session} onLogout={onLogout}>
+    <AppShell user={user}>
       <Outlet />
     </AppShell>
   );
 };
 
-const PageGuard = ({ session, page, children }) => {
-  if (!session || !canAccessPage(session, page)) {
+const PageGuard = ({ page, children }) => {
+  const { user } = useAuth();
+  if (!user || !canAccessPage(user, page)) {
     return <Navigate to="/dashboard" replace />;
   }
   return children;
 };
 
-function App() {
-  const [session, setSession] = useState(() => {
-    const stored = localStorage.getItem(SESSION_KEY);
-    return stored ? JSON.parse(stored) : null;
-  });
+const AdminGuard = ({ children }) => {
+  const { user } = useAuth();
+  if (!user || user.role !== "Admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
 
-  const userRole = useMemo(() => session?.role, [session]);
+function AppContent() {
+  const { user, accessToken, loading } = useAuth();
+  const [errors, setErrors] = useState([]);
+
+  console.log('[AppContent] Loading:', loading, 'User:', user?.email, 'Token:', accessToken ? 'YES' : 'NO');
 
   useEffect(() => {
-    if (!userRole) return;
-    warehouseApi.seedDatabase().catch(() => {
-      toast.error("Unable to refresh demo seed data right now.");
-    });
-  }, [userRole]);
+    const handleError = (event) => {
+      console.error('[ERROR EVENT]', event.error);
+      setErrors(prev => [...prev, event.error?.message || String(event)].slice(-5));
+    };
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
 
-  const handleLogin = async (payload) => {
-    const response = await warehouseApi.demoLogin(payload);
-    setSession(response);
-    localStorage.setItem(SESSION_KEY, JSON.stringify(response));
-    toast.success(`Welcome ${response.name}. Control tower is ready.`);
-  };
+  useEffect(() => {
+    if (!accessToken || !user) return;
+  }, [accessToken, user]);
 
-  const handleLogout = () => {
-    setSession(null);
-    localStorage.removeItem(SESSION_KEY);
-    toast.info("You are now signed out.");
-  };
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
+          <p className="text-sm text-slate-600">Loading warehouse system...</p>
+        </div>
+      </div>
+    );
+  }
 
+  if (errors.length > 0) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-red-50">
+        <div className="max-w-md p-4 bg-white border border-red-200 rounded">
+          <h2 className="text-red-800 font-bold">Application Error</h2>
+          {errors.map((err, i) => (
+            <p key={i} className="text-sm text-red-700 mt-2">{err}</p>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+
+      <Route path="/" element={<ProtectedLayout />}>
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="dashboard"
+          element={
+            <PageGuard page="dashboard">
+              <DashboardPage />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="inventory"
+          element={
+            <PageGuard page="inventory">
+              <InventoryPage />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="orders"
+          element={
+            <PageGuard page="orders">
+              <OrdersPage />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="routes"
+          element={
+            <PageGuard page="routes">
+              <RoutesPage />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="layout-optimization"
+          element={
+            <PageGuard page="layout">
+              <WarehouseLayoutPage />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="analytics"
+          element={
+            <PageGuard page="analytics">
+              <AnalyticsPage />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="analytics/advanced"
+          element={
+            <PageGuard page="analytics">
+              <AnalyticsDashboard />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="forecasting"
+          element={
+            <PageGuard page="analytics">
+              <ForecastingDashboard />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="alerts"
+          element={
+            <PageGuard page="alerts">
+              <AlertsPage />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="admin/users"
+          element={
+            <AdminGuard>
+              <AdminUsersPage />
+            </AdminGuard>
+          }
+        />
+        <Route
+          path="import"
+          element={
+            <PageGuard page="inventory">
+              <ImportPage />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="search"
+          element={
+            <PageGuard page="inventory">
+              <SearchPage />
+            </PageGuard>
+          }
+        />
+        <Route
+          path="notifications"
+          element={
+            <PageGuard page="dashboard">
+              <NotificationCenter />
+            </PageGuard>
+          }
+        />
+      </Route>
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+}
+
+function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage onLogin={handleLogin} isAuthenticated={Boolean(session)} />} />
-
-          <Route path="/" element={<ProtectedLayout session={session} onLogout={handleLogout} />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route
-              path="dashboard"
-              element={
-                <PageGuard session={session} page="dashboard">
-                  <DashboardPage user={session} />
-                </PageGuard>
-              }
-            />
-            <Route
-              path="inventory"
-              element={
-                <PageGuard session={session} page="inventory">
-                  <InventoryPage user={session} />
-                </PageGuard>
-              }
-            />
-            <Route
-              path="orders"
-              element={
-                <PageGuard session={session} page="orders">
-                  <OrdersPage user={session} />
-                </PageGuard>
-              }
-            />
-            <Route
-              path="routes"
-              element={
-                <PageGuard session={session} page="routes">
-                  <RoutesPage user={session} />
-                </PageGuard>
-              }
-            />
-            <Route
-              path="layout-optimization"
-              element={
-                <PageGuard session={session} page="layout">
-                  <WarehouseLayoutPage user={session} />
-                </PageGuard>
-              }
-            />
-            <Route
-              path="analytics"
-              element={
-                <PageGuard session={session} page="analytics">
-                  <AnalyticsPage user={session} />
-                </PageGuard>
-              }
-            />
-            <Route
-              path="alerts"
-              element={
-                <PageGuard session={session} page="alerts">
-                  <AlertsPage user={session} />
-                </PageGuard>
-              }
-            />
-          </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-        <Toaster richColors position="top-right" />
+        <AuthProvider>
+          <AppContent />
+          <Toaster richColors position="top-right" />
+        </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>
   );

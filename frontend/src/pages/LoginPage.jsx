@@ -1,105 +1,111 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { LogIn } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 
-const roles = ["Admin", "Manager", "Staff"];
-
-export const LoginPage = ({ onLogin, isAuthenticated }) => {
-  const [name, setName] = useState("Alex");
-  const [role, setRole] = useState("Manager");
-  const [loading, setLoading] = useState(false);
+export function LoginPage() {
   const navigate = useNavigate();
+  const { login, loading, error, setError } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [localError, setLocalError] = useState("");
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLocalError("");
 
-  const submitHandler = async (event) => {
-    event.preventDefault();
-    setLoading(true);
-    try {
-      await onLogin({ name, role });
+    if (!email || !password) {
+      setLocalError("Email and password are required");
+      return;
+    }
+
+    const result = await login(email, password);
+    if (result.success) {
       navigate("/dashboard");
-    } finally {
-      setLoading(false);
+    } else {
+      setLocalError(result.error);
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-100 p-4 md:p-8" data-testid="login-page-root">
-      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-2">
-        <motion.div
-          initial={{ opacity: 0, x: -18 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3 }}
-          className="overflow-hidden rounded-xl border border-slate-300"
-        >
-          <img
-            src="https://images.pexels.com/photos/7019311/pexels-photo-7019311.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=1200&w=1200"
-            alt="Warehouse worker"
-            className="h-full w-full object-cover"
-            data-testid="login-hero-image"
-          />
-        </motion.div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h1 className="text-center text-3xl font-extrabold text-gray-900">
+            Warehouse Optimization
+          </h1>
+          <p className="mt-2 text-center text-sm text-gray-600">Sign in to your account</p>
+        </div>
 
-        <motion.div initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-          <Card className="h-full rounded-xl border border-slate-300 bg-white">
-            <CardHeader>
-              <p className="font-mono text-xs uppercase tracking-[0.26em] text-slate-500" data-testid="login-eyebrow-text">
-                Internship Demo
-              </p>
-              <CardTitle className="font-heading text-4xl text-slate-900" data-testid="login-title-text">
-                Warehouse Optimization System
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={submitHandler} className="space-y-5" data-testid="login-form">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="name-input" data-testid="login-name-label">
-                    Display Name
-                  </label>
-                  <Input
-                    id="name-input"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    className="h-11 border-slate-300"
-                    data-testid="login-name-input"
-                    required
-                  />
-                </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {(error || localError) && (
+            <div className="rounded-md bg-red-50 p-4">
+              <p className="text-sm font-medium text-red-800">{error || localError}</p>
+            </div>
+          )}
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="role-input" data-testid="login-role-label">
-                    Role
-                  </label>
-                  <select
-                    id="role-input"
-                    value={role}
-                    onChange={(event) => setRole(event.target.value)}
-                    className="h-11 w-full rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-orange-500"
-                    data-testid="login-role-select"
-                  >
-                    {roles.map((roleOption) => (
-                      <option key={roleOption} value={roleOption} data-testid={`login-role-option-${roleOption.toLowerCase()}`}>
-                        {roleOption}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="email-address" className="sr-only">
+                Email address
+              </label>
+              <Input
+                id="email-address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+              />
+            </div>
+          </div>
 
-                <Button className="h-11 w-full bg-slate-900 hover:bg-slate-800" disabled={loading} data-testid="login-submit-button">
-                  <LogIn className="mr-2 h-4 w-4" />
-                  {loading ? "Signing In..." : "Enter Control Tower"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </motion.div>
+          <div>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {loading ? "Signing in..." : "Sign in"}
+            </Button>
+          </div>
+
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{" "}
+              <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+                Register here
+              </Link>
+            </p>
+          </div>
+
+          <div className="text-sm text-gray-500 bg-blue-50 p-3 rounded">
+            <p className="font-semibold mb-1">Demo Credentials:</p>
+            <p>Email: demo@warehouse.com</p>
+            <p>Password: password123</p>
+          </div>
+        </form>
       </div>
     </div>
   );
-};
+}

@@ -1,35 +1,42 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Bell, Boxes, ChartNoAxesCombined, LayoutGrid, LogOut, MapPinned, Menu, PackageSearch, Truck } from "lucide-react";
+import { Bell, Boxes, ChartNoAxesCombined, LayoutGrid, LogOut, MapPinned, Menu, PackageSearch, Truck, Settings, Upload, Search, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import NotificationBell from "@/components/notifications/NotificationBell";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
-  { key: "dashboard", label: "Dashboard", to: "/dashboard", icon: ChartNoAxesCombined },
-  { key: "inventory", label: "Inventory", to: "/inventory", icon: Boxes },
-  { key: "orders", label: "Orders", to: "/orders", icon: Truck },
-  { key: "routes", label: "Picking Routes", to: "/routes", icon: MapPinned },
-  { key: "layout", label: "Layout Optimization", to: "/layout-optimization", icon: LayoutGrid },
-  { key: "analytics", label: "Analytics", to: "/analytics", icon: PackageSearch },
-  { key: "alerts", label: "Alerts", to: "/alerts", icon: Bell },
+  { key: "dashboard", label: "Dashboard", to: "/dashboard", icon: ChartNoAxesCombined, roles: ["Admin", "Manager", "Staff"] },
+  { key: "inventory", label: "Inventory", to: "/inventory", icon: Boxes, roles: ["Admin", "Manager", "Staff"] },
+  { key: "search", label: "Advanced Search", to: "/search", icon: Search, roles: ["Admin", "Manager", "Staff"] },
+  { key: "orders", label: "Orders", to: "/orders", icon: Truck, roles: ["Admin", "Manager", "Staff"] },
+  { key: "routes", label: "Picking Routes", to: "/routes", icon: MapPinned, roles: ["Admin", "Manager", "Staff"] },
+  { key: "layout", label: "Layout Optimization", to: "/layout-optimization", icon: LayoutGrid, roles: ["Admin", "Manager", "Staff"] },
+  { key: "analytics", label: "Analytics", to: "/analytics", icon: PackageSearch, roles: ["Admin", "Manager"] },
+  { key: "forecasting", label: "Forecasting", to: "/forecasting", icon: TrendingUp, roles: ["Admin", "Manager"] },
+  { key: "alerts", label: "Alerts", to: "/alerts", icon: Bell, roles: ["Admin", "Manager", "Staff"] },
+  { key: "import", label: "Bulk Import", to: "/import", icon: Upload, roles: ["Admin", "Manager"] },
+  { key: "admin", label: "User Management", to: "/admin/users", icon: Settings, roles: ["Admin"] },
 ];
 
-const SidebarContent = ({ locationPath, allowedPages }) => (
-  <div className="flex h-full flex-col gap-6">
-    <div className="space-y-2 border-b border-slate-200 pb-6">
-      <p className="font-mono text-xs uppercase tracking-[0.24em] text-slate-500" data-testid="sidebar-eyebrow-text">
-        Swiss Industrial Utility
-      </p>
-      <h1 className="font-heading text-2xl font-bold text-slate-900" data-testid="sidebar-title-text">
-        Depot Smart
-      </h1>
-    </div>
+const SidebarContent = ({ locationPath, user }) => {
+  const visibleItems = navItems.filter((item) => item.roles.includes(user?.role));
 
-    <nav className="space-y-2" data-testid="sidebar-navigation">
-      {navItems
-        .filter((item) => allowedPages.includes(item.key))
-        .map((item) => {
+  return (
+    <div className="flex h-full flex-col gap-6">
+      <div className="space-y-2 border-b border-slate-200 pb-6">
+        <p className="font-mono text-xs uppercase tracking-[0.24em] text-slate-500" data-testid="sidebar-eyebrow-text">
+          Swiss Industrial Utility
+        </p>
+        <h1 className="font-heading text-2xl font-bold text-slate-900" data-testid="sidebar-title-text">
+          Depot Smart
+        </h1>
+      </div>
+
+      <nav className="space-y-2" data-testid="sidebar-navigation">
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const active = locationPath === item.to;
           return (
@@ -48,19 +55,24 @@ const SidebarContent = ({ locationPath, allowedPages }) => (
             </Link>
           );
         })}
-    </nav>
-  </div>
-);
+      </nav>
+    </div>
+  );
+};
 
-export const AppShell = ({ user, onLogout, children }) => {
+export const AppShell = ({ children }) => {
+  const { user, logout } = useAuth();
   const location = useLocation();
-  const allowedPages = user?.allowed_pages || [];
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900" data-testid="app-shell-root">
       <div className="mx-auto flex max-w-[1600px] gap-6 px-4 py-4 md:px-8 md:py-8">
         <aside className="hidden w-72 rounded-xl border border-slate-200 bg-white p-6 lg:block" data-testid="desktop-sidebar">
-          <SidebarContent locationPath={location.pathname} allowedPages={allowedPages} />
+          <SidebarContent locationPath={location.pathname} user={user} />
         </aside>
 
         <div className="flex min-h-[90vh] flex-1 flex-col gap-4">
@@ -73,7 +85,7 @@ export const AppShell = ({ user, onLogout, children }) => {
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="border-slate-200 bg-white">
-                  <SidebarContent locationPath={location.pathname} allowedPages={allowedPages} />
+                  <SidebarContent locationPath={location.pathname} user={user} />
                 </SheetContent>
               </Sheet>
 
@@ -88,10 +100,11 @@ export const AppShell = ({ user, onLogout, children }) => {
             </div>
 
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <Badge className="rounded-md bg-orange-100 text-orange-700" data-testid="header-role-badge">
                 {user?.role}
               </Badge>
-              <Button variant="outline" onClick={onLogout} data-testid="logout-button">
+              <Button variant="outline" onClick={logout} data-testid="logout-button">
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
               </Button>

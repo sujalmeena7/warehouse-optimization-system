@@ -14,14 +14,18 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ExportButton from "@/components/export/ExportButton";
+import { useAuth } from "@/hooks/useAuth";
 import { warehouseApi } from "@/lib/api";
 
-export default function AnalyticsPage({ user }) {
+export default function AnalyticsPage() {
+  const { user } = useAuth();
   const [analytics, setAnalytics] = useState(null);
 
   useEffect(() => {
-    warehouseApi.getAnalytics(user.role).then(setAnalytics);
-  }, [user.role]);
+    if (!user) return;
+    warehouseApi.getAnalytics().then(setAnalytics);
+  }, [user]);
 
   if (!analytics) {
     return <div className="rounded-xl border border-slate-200 bg-white p-6" data-testid="analytics-loading-state">Loading analytics...</div>;
@@ -31,8 +35,13 @@ export default function AnalyticsPage({ user }) {
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6" data-testid="analytics-page-root">
       <Card className="border-slate-200">
         <CardHeader>
-          <CardTitle className="font-heading text-2xl" data-testid="analytics-title-text">Warehouse Analytics</CardTitle>
-          <p className="text-sm text-slate-500" data-testid="analytics-subtitle-text">Data-backed turnover insights, service levels, and demand forecasts.</p>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="font-heading text-2xl" data-testid="analytics-title-text">Warehouse Analytics</CardTitle>
+              <p className="text-sm text-slate-500" data-testid="analytics-subtitle-text">Data-backed turnover insights, service levels, and demand forecasts.</p>
+            </div>
+            <ExportButton entityType="analytics" label="Export Report" />
+          </div>
         </CardHeader>
       </Card>
 

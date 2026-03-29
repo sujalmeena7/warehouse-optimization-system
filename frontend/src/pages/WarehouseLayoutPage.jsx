@@ -5,6 +5,7 @@ import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 import { warehouseApi } from "@/lib/api";
 
 const sizeColorMap = {
@@ -27,9 +28,9 @@ const accessTagMap = {
 
 const strategyLabels = {
   greedy_access: "Greedy Access Priority",
-  genetic_algorithm: "Genetic Algorithm (future)",
-  a_star: "A* Search (future)",
-  reinforcement_learning: "Reinforcement Learning (future)",
+  genetic_algorithm: "Genetic Algorithm (stub)",
+  a_star: "A* Search Algorithm (working)",
+  reinforcement_learning: "Reinforcement Learning (stub)",
 };
 
 const emptyConfig = {
@@ -57,7 +58,8 @@ const cellShade = (height, maxHeight) => {
   return "bg-slate-500 text-white";
 };
 
-export default function WarehouseLayoutPage({ user }) {
+export default function WarehouseLayoutPage() {
+  const { user } = useAuth();
   const [layoutState, setLayoutState] = useState(null);
   const [strategies, setStrategies] = useState([]);
   const [configForm, setConfigForm] = useState(emptyConfig);
@@ -72,10 +74,11 @@ export default function WarehouseLayoutPage({ user }) {
   const gridCells = useMemo(() => (layoutState ? layoutState.grid.flat() : []), [layoutState]);
 
   const loadLayoutData = async () => {
+    if (!user) return;
     try {
       const [strategyResponse, stateResponse] = await Promise.all([
-        warehouseApi.getLayoutStrategies(user.role),
-        warehouseApi.getLayoutState(user.role),
+        warehouseApi.getLayoutStrategies(),
+        warehouseApi.getLayoutState(),
       ]);
       setStrategies(strategyResponse);
       setLayoutState(stateResponse);
@@ -90,12 +93,13 @@ export default function WarehouseLayoutPage({ user }) {
   useEffect(() => {
     loadLayoutData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.role]);
+  }, [user]);
 
   const applyConfig = async () => {
+    if (!user) return;
     setSavingConfig(true);
     try {
-      const updated = await warehouseApi.configureLayout(user.role, {
+      const updated = await warehouseApi.configureLayout({
         rows: Number(configForm.rows),
         cols: Number(configForm.cols),
         max_stack_height: Number(configForm.max_stack_height),
@@ -115,6 +119,7 @@ export default function WarehouseLayoutPage({ user }) {
 
   const addContainer = async (event) => {
     event.preventDefault();
+    if (!user) return;
     setAddingContainer(true);
     try {
       const payload = {
@@ -128,7 +133,7 @@ export default function WarehouseLayoutPage({ user }) {
           },
         ],
       };
-      const updated = await warehouseApi.addLayoutContainers(user.role, payload);
+      const updated = await warehouseApi.addLayoutContainers(payload);
       setLayoutState(updated);
       setContainerForm({ ...emptyContainer, arrival_time: containerForm.arrival_time });
       toast.success("Container added and optimized");
@@ -140,8 +145,9 @@ export default function WarehouseLayoutPage({ user }) {
   };
 
   const seedSample = async (replaceExisting) => {
+    if (!user) return;
     try {
-      const updated = await warehouseApi.seedLayoutContainers(user.role, { replace_existing: replaceExisting });
+      const updated = await warehouseApi.seedLayoutContainers({ replace_existing: replaceExisting });
       setLayoutState(updated);
       toast.success(replaceExisting ? "Sample data reset complete" : "Sample data added");
     } catch (error) {
@@ -154,9 +160,10 @@ export default function WarehouseLayoutPage({ user }) {
       toast.error("Enter a container ID to simulate retrieval");
       return;
     }
+    if (!user) return;
     setRunningRetrieval(true);
     try {
-      const result = await warehouseApi.retrieveLayoutContainer(user.role, { container_id: retrievalId.trim() });
+      const result = await warehouseApi.retrieveLayoutContainer({ container_id: retrievalId.trim() });
       setRetrievalResult(result);
       toast.success("Retrieval simulation complete");
     } catch (error) {

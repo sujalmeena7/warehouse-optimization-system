@@ -4,20 +4,23 @@ import { BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { useAuth } from "@/hooks/useAuth";
 import { warehouseApi } from "@/lib/api";
 
-export default function AlertsPage({ user }) {
+export default function AlertsPage() {
+  const { user } = useAuth();
   const [alerts, setAlerts] = useState([]);
   const [severity, setSeverity] = useState("all");
 
   const loadAlerts = async (currentSeverity) => {
-    const data = await warehouseApi.getAlerts(user.role, currentSeverity);
+    if (!user) return;
+    const data = await warehouseApi.getAlerts(currentSeverity);
     setAlerts(data);
   };
 
   useEffect(() => {
     loadAlerts(severity);
-  }, [user.role, severity]);
+  }, [user, severity]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6" data-testid="alerts-page-root">

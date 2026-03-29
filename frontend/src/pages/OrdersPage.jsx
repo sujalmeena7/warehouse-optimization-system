@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import ExportButton from "@/components/export/ExportButton";
+import { useAuth } from "@/hooks/useAuth";
 import { warehouseApi } from "@/lib/api";
 
 const statuses = ["queued", "picking", "packed", "shipped"];
@@ -17,19 +19,21 @@ const nextStatusMap = {
   shipped: "shipped",
 };
 
-export default function OrdersPage({ user }) {
+export default function OrdersPage() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [counts, setCounts] = useState({ queued: 0, picking: 0, packed: 0, shipped: 0 });
 
   const refreshOrders = async () => {
-    const response = await warehouseApi.getOrders(user.role);
+    if (!user) return;
+    const response = await warehouseApi.getOrders();
     setOrders(response.orders);
     setCounts(response.status_counts);
   };
 
   useEffect(() => {
     refreshOrders();
-  }, [user.role]);
+  }, [user]);
 
   const grouped = useMemo(
     () =>
@@ -41,9 +45,10 @@ export default function OrdersPage({ user }) {
   );
 
   const progressOrder = async (order) => {
+    if (!user) return;
     const nextStatus = nextStatusMap[order.status];
     if (nextStatus === order.status) return;
-    await warehouseApi.updateOrderStatus(user.role, order.id, nextStatus);
+    await warehouseApi.updateOrderStatus(order.id, nextStatus);
     refreshOrders();
   };
 
@@ -66,12 +71,15 @@ export default function OrdersPage({ user }) {
         </CardContent>
       </Card>
 
+      <div className="flex justify-end mb-4">
+        <ExportButton entityType="orders" label="Export Orders" />
+      </div>
+
       <Tabs defaultValue="list" data-testid="orders-tabs-root">
         <TabsList data-testid="orders-tabs-list">
           <TabsTrigger value="list" data-testid="orders-tab-list">List View</TabsTrigger>
           <TabsTrigger value="board" data-testid="orders-tab-board">Kanban Board</TabsTrigger>
         </TabsList>
-
         <TabsContent value="list">
           <Card className="border-slate-200" data-testid="orders-list-card">
             <CardContent className="pt-6">

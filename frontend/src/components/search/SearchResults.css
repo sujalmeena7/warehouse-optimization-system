@@ -1,0 +1,159 @@
+.search-results {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.search-results.loading {
+  text-align: center;
+  color: #999;
+  padding: 40px;
+}
+
+.search-results.error {
+  background: #fee;
+  color: #c33;
+  padding: 20px;
+  border-radius: 4px;
+  border-left: 4px solid #c33;
+}
+
+.search-results.empty {
+  text-align: center;
+  color: #999;
+  padding: 40px;
+  font-style: italic;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.results-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.result-count {
+  color: #666;
+  font-size: 13px;
+}
+
+.results-table {
+  overflow-x: auto;
+}
+
+.results-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.results-table thead {
+  background: #f9f9f9;
+}
+
+.results-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+  border-bottom: 2px solid #eee;
+}
+
+.results-table td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.results-table tbody tr {
+  transition: background 0.2s;
+}
+
+.results-table tbody tr:hover {
+  background: #f9f9f9;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-healthy {
+  background: #e6ffe6;
+  color: #006600;
+}
+
+.status-low {
+  background: #fff4e6;
+  color: #996600;
+}
+
+.status-critical {
+  background: #ffe6e6;
+  color: #cc0000;
+}
+
+.status-queued {
+  background: #e6f2ff;
+  color: #0066cc;
+}
+
+.status-picking {
+  background: #f0e6ff;
+  color: #6600cc;
+}
+
+.status-packed {
+  background: #fff9e6;
+  color: #996600;
+}
+
+.status-shipped {
+  background: #e6ffe6;
+  color: #006600;
+}
+
+.priority-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.priority-low {
+  background: #e6ffe6;
+  color: #006600;
+}
+
+.priority-medium {
+  background: #fff4e6;
+  color: #996600;
+}
+
+.priority-high {
+  background: #ffe6e6;
+  color: #cc0000;
+}
+
+.pagination-info {
+  text-align: right;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+  color: #999;
+  font-size: 12px;
+}

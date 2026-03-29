@@ -1,17 +1,29 @@
 from datetime import datetime, timedelta, timezone
 from math import ceil
 from pathlib import Path
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional, Any
 import logging
 import os
 import uuid
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
 from dotenv import load_dotenv
-from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Depends, Header, File, UploadFile, Body, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from starlette.middleware.cors import CORSMiddleware
 from layout_api import create_layout_router
+from auth import hash_password, verify_password, create_access_token, create_refresh_token, verify_token, extract_user_data_from_token
+from audit_logger import log_action, get_audit_logs, get_entity_audit_trail, create_audit_indexes
+from csv_import import parse_containers_csv, parse_inventory_csv, get_containers_csv_template, get_inventory_csv_template
+from search_service import SearchService
+from export_service import ExportService
+from notification_service import NotificationService
+from forecasting_service import ForecastingService
+from analytics_service import AnalyticsService
 
 
 ROOT_DIR = Path(__file__).parent
@@ -20,6 +32,13 @@ load_dotenv(ROOT_DIR / ".env")
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
+
+# Initialize services early for startup
+search_service = SearchService(db)
+export_service = ExportService(db)
+notification_service = NotificationService(db)
+forecasting_service = ForecastingService(db)
+analytics_service = AnalyticsService(db)
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -84,6 +103,89 @@ class DemoLoginResponse(BaseModel):
     role: RoleName
     permissions: Dict[str, bool]
     allowed_pages: List[str]
+
+
+# User authentication models
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=100)
+    name: str = Field(min_length=2, max_length=100)
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    user_id: str
+    email: str
+    name: str
+    role: RoleName
+
+
+class UserResponse(BaseModel):
+    user_id: str
+    email: str
+    name: str
+    role: RoleName
+    is_active: bool
+    created_at: str
+    last_login: Optional[str] = None
+
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    role: Optional[RoleName] = None
+    is_active: Optional[bool] = None
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+# Audit log models
+class AuditLogRecord(BaseModel):
+    id: str
+    action: str
+    user_id: str
+    user_email: str
+    entity_type: str
+    entity_id: str
+    entity_details: str
+    old_value: Optional[Dict[str, Any]] = None
+    new_value: Optional[Dict[str, Any]] = None
+    changes: List[str] = []
+    timestamp: str
+    ip_address: str
+    status: str
+    error_message: Optional[str] = None
+
+
+class AuditLogFilter(BaseModel):
+    user_id: Optional[str] = None
+    entity_type: Optional[str] = None
+    action: Optional[str] = None
+    limit: int = 100
+    skip: int = 0
+
+
+# CSV Import response models
+class CSVImportErrorItem(BaseModel):
+    row: int
+    error: str
+
+
+class ImportResponse(BaseModel):
+    success: bool
+    success_count: int
+    error_count: int
+    total: int
+    errors: List[CSVImportErrorItem]
+    message: str
 
 
 class InventoryItemBase(BaseModel):
@@ -245,6 +347,36 @@ class AnalyticsResponse(BaseModel):
     demand_forecast: List[DemandForecastPoint]
 
 
+class SaveFilterRequest(BaseModel):
+    name: str
+    entity_type: str  # "inventory" or "orders"
+    filters: Dict[str, Any]
+
+
+class ExportRequest(BaseModel):
+    entity_type: str  # "inventory", "orders", or "analytics"
+    format: str = "csv"  # "csv" or "excel"
+    selected_columns: Optional[List[str]] = None
+    filters: Optional[Dict[str, Any]] = None
+
+
+class NotificationBase(BaseModel):
+    title: str
+    message: str
+    type: str = "info"
+    severity: str = "info"
+
+
+class NotificationRecord(NotificationBase):
+    id: str
+    user_id: str
+    entity_type: Optional[str] = None
+    entity_id: Optional[str] = None
+    action_url: Optional[str] = None
+    read: bool = False
+    created_at: str
+
+
 def utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -263,6 +395,23 @@ def require_permission(role: str, permission_key: str) -> None:
     valid_role = validate_role(role)
     if not ROLE_PERMISSIONS[valid_role].get(permission_key, False):
         raise HTTPException(status_code=403, detail=f"Role '{valid_role}' cannot access {permission_key}")
+
+
+async def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[str, str]:
+    """Extract and verify the current user from JWT token."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+
+    token = authorization.replace("Bearer ", "")
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user_data = extract_user_data_from_token(payload)
+    if not user_data.get("user_id"):
+        raise HTTPException(status_code=401, detail="Invalid token claims")
+
+    return user_data
 
 
 def inventory_metrics(item: Dict) -> Dict[str, int | str]:
@@ -662,9 +811,414 @@ async def demo_login(payload: DemoLoginRequest) -> DemoLoginResponse:
     )
 
 
+@api_router.post("/auth/register", response_model=TokenResponse)
+async def register_user(payload: UserRegister) -> TokenResponse:
+    """Register a new user. First user becomes Admin, others require admin creation."""
+    existing_user = await db.users.find_one({"email": payload.email}, {"_id": 0})
+    if existing_user:
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    user_count = await db.users.count_documents({})
+    role: RoleName = "Admin" if user_count == 0 else "Staff"
+
+    user_id = str(uuid.uuid4())
+    hashed_password = hash_password(payload.password)
+    now = datetime.now(timezone.utc).isoformat()
+
+    user_doc = {
+        "id": user_id,
+        "email": payload.email,
+        "hashed_password": hashed_password,
+        "name": payload.name,
+        "role": role,
+        "is_active": True,
+        "created_at": now,
+        "updated_at": now,
+        "last_login": None,
+    }
+    await db.users.insert_one(user_doc)
+
+    token_data = {"user_id": user_id, "email": payload.email, "name": payload.name, "role": role}
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user_id=user_id,
+        email=payload.email,
+        name=payload.name,
+        role=role,
+    )
+
+
+@api_router.post("/auth/login", response_model=TokenResponse)
+async def login_user(payload: UserLogin) -> TokenResponse:
+    """Login with email and password."""
+    user = await db.users.find_one({"email": payload.email}, {"_id": 0})
+    if not user or not verify_password(payload.password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    if not user.get("is_active", False):
+        raise HTTPException(status_code=403, detail="User account is deactivated")
+
+    await db.users.update_one({"id": user["id"]}, {"$set": {"last_login": datetime.now(timezone.utc).isoformat()}})
+
+    token_data = {
+        "user_id": user["id"],
+        "email": user["email"],
+        "name": user["name"],
+        "role": user["role"],
+    }
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user_id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        role=user["role"],
+    )
+
+
+@api_router.post("/auth/refresh", response_model=TokenResponse)
+async def refresh_token_endpoint(payload: RefreshTokenRequest) -> TokenResponse:
+    """Refresh the access token using a refresh token."""
+    token_data = verify_token(payload.refresh_token)
+    if not token_data or token_data.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    user_id = token_data.get("user_id")
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user or not user.get("is_active", False):
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+
+    new_token_data = {
+        "user_id": user["id"],
+        "email": user["email"],
+        "name": user["name"],
+        "role": user["role"],
+    }
+    new_access_token = create_access_token(new_token_data)
+    new_refresh_token = create_refresh_token(new_token_data)
+
+    return TokenResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        user_id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        role=user["role"],
+    )
+
+
+@api_router.get("/users", response_model=List[UserResponse])
+async def list_users(current_user: Dict[str, str] = Depends(get_current_user)) -> List[UserResponse]:
+    """List all users (Admin only)."""
+    if current_user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Only admins can list users")
+
+    users = await db.users.find({}, {"_id": 0, "hashed_password": 0}).to_list(500)
+    return [
+        UserResponse(
+            user_id=user["id"],
+            email=user["email"],
+            name=user["name"],
+            role=user["role"],
+            is_active=user.get("is_active", False),
+            created_at=user.get("created_at", ""),
+            last_login=user.get("last_login"),
+        )
+        for user in users
+    ]
+
+
+@api_router.post("/users", response_model=UserResponse)
+async def create_user(payload: UserRegister, current_user: Dict[str, str] = Depends(get_current_user)) -> UserResponse:
+    """Create a new user (Admin only)."""
+    if current_user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Only admins can create users")
+
+    existing_user = await db.users.find_one({"email": payload.email}, {"_id": 0})
+    if existing_user:
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    user_id = str(uuid.uuid4())
+    hashed_password = hash_password(payload.password)
+    now = datetime.now(timezone.utc).isoformat()
+
+    user_doc = {
+        "id": user_id,
+        "email": payload.email,
+        "hashed_password": hashed_password,
+        "name": payload.name,
+        "role": "Staff",
+        "is_active": True,
+        "created_at": now,
+        "updated_at": now,
+        "last_login": None,
+    }
+    await db.users.insert_one(user_doc)
+
+    return UserResponse(
+        user_id=user_id,
+        email=payload.email,
+        name=payload.name,
+        role="Staff",
+        is_active=True,
+        created_at=now,
+        last_login=None,
+    )
+
+
+@api_router.put("/users/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: str,
+    payload: UserUpdate,
+    current_user: Dict[str, str] = Depends(get_current_user),
+) -> UserResponse:
+    """Update a user (Admin only)."""
+    if current_user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Only admins can update users")
+
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if payload.name is not None:
+        update_data["name"] = payload.name
+    if payload.role is not None:
+        update_data["role"] = payload.role
+    if payload.is_active is not None:
+        update_data["is_active"] = payload.is_active
+
+    await db.users.update_one({"id": user_id}, {"$set": update_data})
+
+    updated = await db.users.find_one({"id": user_id}, {"_id": 0, "hashed_password": 0})
+    return UserResponse(
+        user_id=updated["id"],
+        email=updated["email"],
+        name=updated["name"],
+        role=updated["role"],
+        is_active=updated.get("is_active", False),
+        created_at=updated.get("created_at", ""),
+        last_login=updated.get("last_login"),
+    )
+
+
+@api_router.delete("/users/{user_id}", response_model=dict)
+async def deactivate_user(
+    user_id: str,
+    current_user: Dict[str, str] = Depends(get_current_user),
+) -> dict:
+    """Deactivate a user (Admin only, cannot deactivate self)."""
+    if current_user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Only admins can deactivate users")
+
+    if current_user.get("user_id") == user_id:
+        raise HTTPException(status_code=400, detail="Cannot deactivate your own account")
+
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await db.users.update_one({"id": user_id}, {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}})
+
+    return {"message": f"User {user_id} has been deactivated"}
+
+
+# Audit log endpoints
+@api_router.get("/audit-logs", response_model=List[AuditLogRecord])
+async def list_audit_logs(
+    user_id: Optional[str] = Query(None),
+    entity_type: Optional[str] = Query(None),
+    action: Optional[str] = Query(None),
+    limit: int = Query(100, le=500),
+    skip: int = Query(0, ge=0),
+    current_user: Dict[str, str] = Depends(get_current_user),
+) -> List[AuditLogRecord]:
+    """List audit logs (Admin only)."""
+    if current_user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Only admins can view audit logs")
+
+    logs = await get_audit_logs(db, user_id=user_id, entity_type=entity_type, action=action, limit=limit, skip=skip)
+    return [AuditLogRecord(**log) for log in logs]
+
+
+@api_router.get("/audit-logs/{entity_type}/{entity_id}", response_model=List[AuditLogRecord])
+async def get_entity_history(
+    entity_type: str,
+    entity_id: str,
+    current_user: Dict[str, str] = Depends(get_current_user),
+) -> List[AuditLogRecord]:
+    """Get audit trail for a specific entity (Admin only)."""
+    if current_user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Only admins can view audit logs")
+
+    logs = await get_entity_audit_trail(db, entity_type, entity_id)
+    return [AuditLogRecord(**log) for log in logs]
+
+
+@api_router.get("/audit-logs/user/{user_id}", response_model=List[AuditLogRecord])
+async def get_user_activity(
+    user_id: str,
+    limit: int = Query(100, le=500),
+    skip: int = Query(0, ge=0),
+    current_user: Dict[str, str] = Depends(get_current_user),
+) -> List[AuditLogRecord]:
+    """Get activity timeline for a specific user (Admin only)."""
+    if current_user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Only admins can view audit logs")
+
+    logs = await get_audit_logs(db, user_id=user_id, limit=limit, skip=skip)
+    return [AuditLogRecord(**log) for log in logs]
+
+
+# CSV Import endpoints
+@api_router.get("/import/templates/containers")
+async def get_containers_template() -> dict:
+    """Download CSV template for containers import."""
+    return {
+        "template": get_containers_csv_template(),
+        "columns": ["container_id", "size", "weight", "access_frequency", "arrival_time"],
+        "size_options": ["Small", "Medium", "Large"],
+        "access_frequency_options": ["High", "Medium", "Low"],
+    }
+
+
+@api_router.get("/import/templates/inventory")
+async def get_inventory_template() -> dict:
+    """Download CSV template for inventory import."""
+    return {
+        "template": get_inventory_csv_template(),
+        "columns": [
+            "sku",
+            "name",
+            "category",
+            "zone",
+            "bin_code",
+            "x",
+            "y",
+            "quantity",
+            "reorder_threshold",
+            "max_capacity",
+            "unit_cost",
+            "lead_time_days",
+        ],
+    }
+
+
+@api_router.post("/import/containers", response_model=ImportResponse)
+async def import_containers(file: UploadFile = File(...), current_user: Dict[str, str] = Depends(get_current_user)) -> ImportResponse:
+    """Import containers from CSV file (Admin only)."""
+    if current_user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Only admins can import data")
+
+    try:
+        content = await file.read()
+        csv_content = content.decode("utf-8")
+        result = parse_containers_csv(csv_content)
+
+        # If there are errors, return them without importing
+        if result.error_count > 0:
+            return ImportResponse(
+                success=False,
+                success_count=0,
+                error_count=result.error_count,
+                total=result.success_count + result.error_count,
+                errors=result.errors,
+                message=f"CSV validation failed: {result.error_count} errors found",
+            )
+
+        # Insert containers
+        if result.containers:
+            await db.layout_containers.insert_many(result.containers)
+
+            # Log the import action
+            await log_action(
+                db,
+                action="CREATE",
+                user_id=current_user.get("user_id", "unknown"),
+                user_email=current_user.get("email", "unknown"),
+                entity_type="container_import",
+                entity_id=f"bulk_{len(result.containers)}",
+                entity_details=f"Imported {len(result.containers)} containers",
+                new_value={"count": len(result.containers)},
+            )
+
+        return ImportResponse(
+            success=True,
+            success_count=result.success_count,
+            error_count=0,
+            total=result.success_count,
+            errors=[],
+            message=f"Successfully imported {result.success_count} containers",
+        )
+
+    except Exception as e:
+        logger.error(f"Container import error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Import failed: {str(e)}")
+
+
+@api_router.post("/import/inventory", response_model=ImportResponse)
+async def import_inventory(file: UploadFile = File(...), current_user: Dict[str, str] = Depends(get_current_user)) -> ImportResponse:
+    """Import inventory from CSV file (Admin only)."""
+    if current_user.get("role") != "Admin":
+        raise HTTPException(status_code=403, detail="Only admins can import data")
+
+    try:
+        content = await file.read()
+        csv_content = content.decode("utf-8")
+        result = parse_inventory_csv(csv_content)
+
+        # If there are errors, return them without importing
+        if result.error_count > 0:
+            return ImportResponse(
+                success=False,
+                success_count=0,
+                error_count=result.error_count,
+                total=result.success_count + result.error_count,
+                errors=result.errors,
+                message=f"CSV validation failed: {result.error_count} errors found",
+            )
+
+        # Insert inventory items
+        if result.items:
+            await db.inventory.insert_many(result.items)
+
+            # Log the import action
+            await log_action(
+                db,
+                action="CREATE",
+                user_id=current_user.get("user_id", "unknown"),
+                user_email=current_user.get("email", "unknown"),
+                entity_type="inventory_import",
+                entity_id=f"bulk_{len(result.items)}",
+                entity_details=f"Imported {len(result.items)} inventory items",
+                new_value={"count": len(result.items)},
+            )
+
+        return ImportResponse(
+            success=True,
+            success_count=result.success_count,
+            error_count=0,
+            total=result.success_count,
+            errors=[],
+            message=f"Successfully imported {result.success_count} inventory items",
+        )
+
+    except Exception as e:
+        logger.error(f"Inventory import error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Import failed: {str(e)}")
+
+
+
 @api_router.get("/warehouse/overview", response_model=WarehouseOverview)
-async def warehouse_overview(role: str = Query(...)) -> WarehouseOverview:
-    require_permission(role, "dashboard")
+async def warehouse_overview(user: Dict[str, str] = Depends(get_current_user)) -> WarehouseOverview:
+    require_permission(user["role"], "dashboard")
     inventory_docs = await db.inventory.find({}, {"_id": 0}).to_list(500)
     order_docs = await db.orders.find({}, {"_id": 0}).to_list(500)
 
@@ -725,11 +1279,11 @@ async def warehouse_overview(role: str = Query(...)) -> WarehouseOverview:
 
 @api_router.get("/inventory", response_model=List[InventoryView])
 async def get_inventory(
-    role: str = Query(...),
+    user: Dict[str, str] = Depends(get_current_user),
     search: Optional[str] = Query(default=None),
     status: Optional[Literal["healthy", "low", "critical"]] = Query(default=None),
 ) -> List[InventoryView]:
-    require_permission(role, "inventory")
+    require_permission(user["role"], "inventory")
     inventory_docs = await db.inventory.find({}, {"_id": 0}).to_list(1200)
 
     output: List[InventoryView] = []
@@ -749,9 +1303,9 @@ async def get_inventory(
 
 
 @api_router.post("/inventory", response_model=InventoryView)
-async def create_inventory_item(payload: InventoryCreate, role: str = Query(...)) -> InventoryView:
-    require_permission(role, "inventory")
-    require_permission(role, "can_edit_inventory")
+async def create_inventory_item(payload: InventoryCreate, user: Dict[str, str] = Depends(get_current_user)) -> InventoryView:
+    require_permission(user["role"], "inventory")
+    require_permission(user["role"], "can_edit_inventory")
 
     exists = await db.inventory.find_one({"sku": payload.sku}, {"_id": 0})
     if exists:
@@ -761,17 +1315,35 @@ async def create_inventory_item(payload: InventoryCreate, role: str = Query(...)
     item_doc = item.model_dump()
     await db.inventory.insert_one(item_doc)
     metrics = inventory_metrics(item_doc)
+
+    # Log the action (use placeholder user data since we don't have JWT yet)
+    await log_action(
+        db,
+        action="CREATE",
+        user_id="unknown",
+        user_email="unknown",
+        entity_type="inventory",
+        entity_id=item["id"],
+        entity_details=f"SKU: {item['sku']}, Name: {item['name']}",
+        new_value=item_doc,
+    )
+
     return InventoryView(**item_doc, **metrics)
 
 
 @api_router.put("/inventory/{item_id}", response_model=InventoryView)
-async def update_inventory_item(item_id: str, payload: InventoryUpdate, role: str = Query(...)) -> InventoryView:
-    require_permission(role, "inventory")
-    require_permission(role, "can_edit_inventory")
+async def update_inventory_item(item_id: str, payload: InventoryUpdate, user: Dict[str, str] = Depends(get_current_user)) -> InventoryView:
+    require_permission(user["role"], "inventory")
+    require_permission(user["role"], "can_edit_inventory")
 
     update_payload = {k: v for k, v in payload.model_dump().items() if v is not None}
     if not update_payload:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    # Get old value for audit log
+    old_doc = await db.inventory.find_one({"id": item_id}, {"_id": 0})
+    if not old_doc:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
 
     result = await db.inventory.update_one({"id": item_id}, {"$set": update_payload})
     if result.matched_count == 0:
@@ -781,12 +1353,26 @@ async def update_inventory_item(item_id: str, payload: InventoryUpdate, role: st
     if not updated:
         raise HTTPException(status_code=404, detail="Inventory item not found after update")
     metrics = inventory_metrics(updated)
+
+    # Log the action with old and new values
+    await log_action(
+        db,
+        action="UPDATE",
+        user_id="unknown",
+        user_email="unknown",
+        entity_type="inventory",
+        entity_id=item_id,
+        entity_details=f"SKU: {updated['sku']}, Name: {updated['name']}",
+        old_value=old_doc,
+        new_value=updated,
+    )
+
     return InventoryView(**updated, **metrics)
 
 
 @api_router.get("/orders", response_model=OrderListResponse)
-async def get_orders(role: str = Query(...)) -> OrderListResponse:
-    require_permission(role, "orders")
+async def get_orders(user: Dict[str, str] = Depends(get_current_user)) -> OrderListResponse:
+    require_permission(user["role"], "orders")
     order_docs = await db.orders.find({}, {"_id": 0}).to_list(1200)
     orders = [OrderView(**order, priority_score=priority_score(order)) for order in order_docs]
     orders.sort(key=lambda entry: entry.priority_score, reverse=True)
@@ -799,8 +1385,14 @@ async def get_orders(role: str = Query(...)) -> OrderListResponse:
 
 
 @api_router.patch("/orders/{order_id}/status", response_model=OrderView)
-async def update_order_status(order_id: str, payload: OrderStatusUpdate, role: str = Query(...)) -> OrderView:
-    require_permission(role, "orders")
+async def update_order_status(order_id: str, payload: OrderStatusUpdate, user: Dict[str, str] = Depends(get_current_user)) -> OrderView:
+    require_permission(user["role"], "orders")
+
+    # Get old value for audit log
+    old_order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not old_order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
     update_data = {"status": payload.status, "updated_at": utc_iso()}
     result = await db.orders.update_one({"id": order_id}, {"$set": update_data})
     if result.matched_count == 0:
@@ -822,12 +1414,26 @@ async def update_order_status(order_id: str, payload: OrderStatusUpdate, role: s
     updated = await db.orders.find_one({"id": order_id}, {"_id": 0})
     if not updated:
         raise HTTPException(status_code=404, detail="Order not found after update")
+
+    # Log the action
+    await log_action(
+        db,
+        action="UPDATE",
+        user_id="unknown",
+        user_email="unknown",
+        entity_type="order",
+        entity_id=order_id,
+        entity_details=f"Order: {updated['reference']}, New Status: {payload.status}",
+        old_value={"status": old_order["status"]},
+        new_value={"status": payload.status},
+    )
+
     return OrderView(**updated, priority_score=priority_score(updated))
 
 
 @api_router.get("/routes/optimize", response_model=RoutePlan)
-async def optimize_route(order_id: str = Query(...), role: str = Query(...)) -> RoutePlan:
-    require_permission(role, "routes")
+async def optimize_route(order_id: str = Query(...), user: Dict[str, str] = Depends(get_current_user)) -> RoutePlan:
+    require_permission(user["role"], "routes")
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -835,8 +1441,8 @@ async def optimize_route(order_id: str = Query(...), role: str = Query(...)) -> 
 
 
 @api_router.get("/analytics/trends", response_model=AnalyticsResponse)
-async def analytics_trends(role: str = Query(...)) -> AnalyticsResponse:
-    require_permission(role, "analytics")
+async def analytics_trends(user: Dict[str, str] = Depends(get_current_user)) -> AnalyticsResponse:
+    require_permission(user["role"], "analytics")
     inventory_docs = await db.inventory.find({}, {"_id": 0}).to_list(500)
     order_docs = await db.orders.find({}, {"_id": 0}).to_list(500)
 
@@ -897,10 +1503,10 @@ async def analytics_trends(role: str = Query(...)) -> AnalyticsResponse:
 
 @api_router.get("/alerts", response_model=List[AlertRecord])
 async def get_alerts(
-    role: str = Query(...),
+    user: Dict[str, str] = Depends(get_current_user),
     severity: Optional[Literal["info", "warning", "critical"]] = Query(default=None),
 ) -> List[AlertRecord]:
-    require_permission(role, "alerts")
+    require_permission(user["role"], "alerts")
     alert_docs = await db.alerts.find({}, {"_id": 0}).to_list(500)
     inventory_docs = await db.inventory.find({}, {"_id": 0}).to_list(500)
     order_docs = await db.orders.find({}, {"_id": 0}).to_list(500)
@@ -961,11 +1567,57 @@ async def get_alerts(
 
 @app.on_event("startup")
 async def startup_seed() -> None:
-    await seed_database(force=False)
+    # Initialize audit log indexes
+    try:
+        await create_audit_indexes(db)
+    except Exception as e:
+        logger.warning(f"Could not create audit indexes on startup: {e}")
+
+    # Initialize search indexes
+    try:
+        await search_service.initialize_indexes()
+    except Exception as e:
+        logger.warning(f"Could not create search indexes on startup: {e}")
+
+    # Initialize notification indexes
+    try:
+        await notification_service.create_indexes()
+    except Exception as e:
+        logger.warning(f"Could not create notification indexes on startup: {e}")
+
+    # Initialize forecasting indexes
+    try:
+        await forecasting_service.create_indexes()
+    except Exception as e:
+        logger.warning(f"Could not create forecasting indexes on startup: {e}")
+
+    # Seed demo data
+    try:
+        await seed_database(force=False)
+    except Exception as e:
+        logger.warning(f"Could not seed database on startup: {e}")
+
+    # Create demo admin if no users exist
+    try:
+        user_count = await db.users.count_documents({})
+        if user_count == 0:
+            demo_admin = {
+                "id": str(uuid.uuid4()),
+                "email": "demo@warehouse.com",
+                "hashed_password": hash_password("password123"),
+                "name": "Demo Admin",
+                "role": "Admin",
+                "is_active": True,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "last_login": None,
+            }
+            await db.users.insert_one(demo_admin)
+            logger.info("Created demo admin user (demo@warehouse.com / password123)")
+    except Exception as e:
+        logger.warning(f"Could not create demo admin on startup: {e}")
 
 
-app.include_router(api_router)
-app.include_router(create_layout_router(db, require_permission))
 
 app.add_middleware(
     CORSMiddleware,
@@ -975,10 +1627,482 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+# logging is configured at the top of this file
 
 
 @app.on_event("shutdown")
 async def shutdown_db_client() -> None:
     client.close()
+
+# Search Service Integration (search_service instantiated at top of file)
+
+
+# ========== SEARCH ENDPOINTS ==========
+
+@api_router.get("/search/inventory")
+async def search_inventory(
+    user: Dict[str, str] = Depends(get_current_user),
+    q: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    zone: Optional[str] = Query(None),
+    qty_min: Optional[int] = Query(None),
+    qty_max: Optional[int] = Query(None),
+    skip: int = Query(0),
+    limit: int = Query(100),
+) -> Dict[str, Any]:
+    """Search inventory with filters."""
+    require_permission(user["role"], "inventory")
+
+    filters = {}
+    if category:
+        filters["category"] = category
+    if status:
+        filters["status"] = status
+    if zone:
+        filters["zone"] = zone
+    if qty_min is not None or qty_max is not None:
+        filters["qty_range"] = {}
+        if qty_min is not None:
+            filters["qty_range"]["min"] = qty_min
+        if qty_max is not None:
+            filters["qty_range"]["max"] = qty_max
+
+    result = await search_service.search_inventory(q, filters, skip, limit)
+    return result
+
+
+@api_router.get("/search/orders")
+async def search_orders(
+    user: Dict[str, str] = Depends(get_current_user),
+    q: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
+    date_start: Optional[str] = Query(None),
+    date_end: Optional[str] = Query(None),
+    skip: int = Query(0),
+    limit: int = Query(100),
+) -> Dict[str, Any]:
+    """Search orders with filters."""
+    require_permission(user["role"], "orders")
+
+    filters = {}
+    if status:
+        filters["status"] = status
+    if priority:
+        filters["priority"] = priority
+    if date_start or date_end:
+        filters["date_range"] = {}
+        if date_start:
+            filters["date_range"]["start"] = date_start
+        if date_end:
+            filters["date_range"]["end"] = date_end
+
+    result = await search_service.search_orders(q, filters, skip, limit)
+    return result
+
+
+@api_router.post("/saved-filters", status_code=201)
+async def save_filter(
+    user: Dict[str, str] = Depends(get_current_user),
+    filter_data: SaveFilterRequest = Body(...),
+) -> Dict[str, str]:
+    """Save a custom filter."""
+    filter_id = await search_service.save_filter(
+        user["user_id"],
+        filter_data.name,
+        filter_data.entity_type,
+        filter_data.filters
+    )
+    return {"id": filter_id, "message": "Filter saved successfully"}
+
+
+@api_router.get("/saved-filters")
+async def get_saved_filters(
+    user: Dict[str, str] = Depends(get_current_user),
+    entity_type: Optional[str] = Query(None),
+) -> List[Dict]:
+    """Get user's saved filters."""
+    filters = await search_service.get_saved_filters(user["user_id"], entity_type)
+    return filters
+
+
+@api_router.delete("/saved-filters/{filter_id}")
+async def delete_saved_filter(
+    filter_id: str,
+    user: Dict[str, str] = Depends(get_current_user),
+) -> Dict[str, str]:
+    """Delete a saved filter."""
+    success = await search_service.delete_saved_filter(filter_id, user["user_id"])
+    if success:
+        return {"message": "Filter deleted successfully"}
+    return {"message": "Filter not found"}
+
+
+@api_router.get("/search/suggestions")
+async def get_search_suggestions(
+    user: Dict[str, str] = Depends(get_current_user),
+    q: str = Query(...),
+    type: str = Query("inventory"),
+) -> List[str]:
+    """Get autocomplete suggestions."""
+    suggestions = await search_service.get_search_suggestions(q, type)
+    return suggestions
+
+
+# Export Endpoints
+@api_router.post("/export")
+async def export_data(
+    user: Dict[str, str] = Depends(get_current_user),
+    export_request: ExportRequest = Body(...),
+) -> StreamingResponse:
+    """Export data to CSV format."""
+    try:
+        require_permission(user["role"], "inventory")
+
+        # Generate CSV based on entity type
+        if export_request.entity_type == "inventory":
+            csv_data = await export_service.export_inventory_csv(
+                export_request.selected_columns,
+                export_request.filters
+            )
+            filename = f"inventory_export_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+        elif export_request.entity_type == "orders":
+            csv_data = await export_service.export_orders_csv(
+                export_request.selected_columns,
+                export_request.filters
+            )
+            filename = f"orders_export_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+        elif export_request.entity_type == "analytics":
+            csv_data = await export_service.export_analytics_csv(
+                export_request.selected_columns
+            )
+            filename = f"analytics_export_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+        else:
+            raise HTTPException(status_code=400, detail="Invalid entity_type")
+
+        # Log export action
+        await log_action(
+            db,
+            action="EXPORT",
+            user_id=user["user_id"],
+            user_email=user.get("email", "unknown"),
+            entity_type=f"export_{export_request.entity_type}",
+            entity_id="export",
+            entity_details=f"Exported {export_request.entity_type}",
+            new_value={"entity_type": export_request.entity_type, "columns": export_request.selected_columns},
+        )
+
+        # Return as streaming response
+        return StreamingResponse(
+            iter([csv_data]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Export error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/export/columns/{entity_type}")
+async def get_export_columns(
+    user: Dict[str, str] = Depends(get_current_user),
+    entity_type: str = None,
+) -> List[str]:
+    """Get available columns for export."""
+    require_permission(user["role"], "inventory")
+    columns = export_service.get_available_columns(entity_type)
+    return columns
+
+
+# Notification Endpoints
+@api_router.get("/notifications")
+async def get_notifications(
+    user: Dict[str, str] = Depends(get_current_user),
+    limit: int = Query(50),
+    skip: int = Query(0),
+) -> Dict[str, Any]:
+    """Get paginated notifications for current user."""
+    result = await notification_service.get_user_notifications(user["user_id"], limit, skip)
+    return result
+
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(
+    user: Dict[str, str] = Depends(get_current_user),
+) -> Dict[str, int]:
+    """Get count of unread notifications."""
+    count = await notification_service.get_unread_count(user["user_id"])
+    return {"unread": count}
+
+
+@api_router.put("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    user: Dict[str, str] = Depends(get_current_user),
+) -> Dict[str, str]:
+    """Mark notification as read."""
+    success = await notification_service.mark_as_read(notification_id, user["user_id"])
+    if success:
+        return {"message": "Notification marked as read"}
+    return {"message": "Notification not found"}
+
+
+@api_router.put("/notifications/read-all")
+async def mark_all_read(
+    user: Dict[str, str] = Depends(get_current_user),
+) -> Dict[str, int]:
+    """Mark all notifications as read."""
+    count = await notification_service.mark_all_as_read(user["user_id"])
+    return {"marked_as_read": count}
+
+
+@api_router.delete("/notifications/{notification_id}")
+async def delete_notification(
+    notification_id: str,
+    user: Dict[str, str] = Depends(get_current_user),
+) -> Dict[str, str]:
+    """Delete a notification."""
+    success = await notification_service.delete_notification(notification_id, user["user_id"])
+    if success:
+        return {"message": "Notification deleted"}
+    return {"message": "Notification not found"}
+
+
+@app.websocket("/ws/notifications/{user_id}")
+async def websocket_notifications(websocket: WebSocket, user_id: str):
+    """
+    WebSocket endpoint for real-time notifications.
+    Requires user_id in URL and JWT token in query params or headers.
+    """
+    # Verify user authentication
+    try:
+        # Get token from query params or headers
+        token = None
+        if "token" in websocket.query_params:
+            token = websocket.query_params["token"]
+
+        if not token:
+            await websocket.close(code=4001, reason="Unauthorized")
+            return
+
+        # Verify token
+        user_data = verify_token(token)
+        if not user_data or user_data.get("user_id") != user_id:
+            await websocket.close(code=4001, reason="Unauthorized")
+            return
+    except Exception as e:
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
+
+    await websocket.accept()
+    notification_service.connect(user_id, websocket)
+
+    try:
+        while True:
+            # Keep connection alive, receive any messages from client
+            data = await websocket.receive_text()
+            # Server can ignore incoming messages or use them for heartbeat
+    except WebSocketDisconnect:
+        notification_service.disconnect(user_id, websocket)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        notification_service.disconnect(user_id, websocket)
+
+
+# Forecasting Endpoints
+@api_router.get("/forecasting/demand/{sku}")
+async def forecast_demand(
+    sku: str,
+    user: Dict[str, str] = Depends(get_current_user),
+    days: int = Query(30),
+) -> Dict[str, Any]:
+    """Forecast demand for a SKU."""
+    require_permission(user["role"], "inventory")
+    result = await forecasting_service.forecast_demand(sku, days)
+    return result
+
+
+@api_router.get("/forecasting/recommendation/{sku}")
+async def get_recommendation(
+    sku: str,
+    user: Dict[str, str] = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Get reorder recommendation for a SKU."""
+    require_permission(user["role"], "inventory")
+
+    # Get current inventory
+    item = await db.inventory.find_one({"sku": sku})
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    # Get historical avg demand
+    history = await db.inventory_history.find(
+        {"sku": sku}
+    ).sort("timestamp", -1).limit(30).to_list(None)
+
+    if history:
+        avg_demand = sum(h.get("quantity", 0) for h in history) / len(history)
+    else:
+        avg_demand = item.get("quantity", 100)
+
+    lead_time = item.get("lead_time_days", 7)
+    safety_stock = item.get("reorder_threshold", int(avg_demand * 3))
+    reorder_qty = int(avg_demand * 30) + safety_stock
+
+    return {
+        "sku": sku,
+        "current_quantity": item.get("quantity", 0),
+        "average_daily_demand": avg_demand,
+        "lead_time_days": lead_time,
+        "safety_stock": safety_stock,
+        "recommended_reorder_qty": max(1, reorder_qty),
+        "reorder_threshold": item.get("reorder_threshold", 0),
+    }
+
+
+@api_router.get("/forecasting/anomalies")
+async def detect_anomalies(
+    user: Dict[str, str] = Depends(get_current_user),
+    sku: Optional[str] = Query(None),
+) -> Dict[str, Any]:
+    """Detect anomalies in inventory patterns."""
+    require_permission(user["role"], "inventory")
+
+    if sku:
+        result = await forecasting_service.detect_anomalies(sku)
+        return result
+    else:
+        # Check all SKUs for anomalies
+        skus = await db.inventory.distinct("sku")
+        all_anomalies = []
+
+        for s in skus[:20]:  # Limit to first 20 for performance
+            result = await forecasting_service.detect_anomalies(s)
+            if result.get("anomalies"):
+                all_anomalies.extend([
+                    {**a, "sku": s} for a in result["anomalies"]
+                ])
+
+        # Sort by severity
+        severity_order = {"critical": 0, "warning": 1}
+        all_anomalies.sort(key=lambda x: (
+            severity_order.get(x.get("severity"), 2),
+            abs(x.get("z_score", 0))
+        ), reverse=True)
+
+        return {
+            "status": "success",
+            "anomalies": all_anomalies[:20],
+            "total_skus_checked": len(skus)
+        }
+
+
+@api_router.get("/forecasting/trends/{sku}")
+async def get_trends(
+    sku: str,
+    user: Dict[str, str] = Depends(get_current_user),
+    days: int = Query(90),
+) -> Dict[str, Any]:
+    """Get trend analysis for a SKU."""
+    require_permission(user["role"], "inventory")
+    result = await forecasting_service.get_trends(sku, days)
+    return result
+
+
+@api_router.post("/forecasting/retrain")
+async def retrain_models(
+    user: Dict[str, str] = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Manually retrain forecasting models."""
+    require_permission(user["role"], "inventory")
+
+    # Only admins can retrain
+    if user["role"] != "Admin":
+        raise HTTPException(status_code=403, detail="Only admins can retrain models")
+
+    result = await forecasting_service.retrain_all_models()
+
+    # Log action
+    await log_action(
+        db,
+        action="RETRAIN",
+        user_id=user["user_id"],
+        user_email=user.get("email", "unknown"),
+        entity_type="forecasting",
+        entity_id="retrain",
+        entity_details="Retrained forecasting models",
+        new_value=result,
+    )
+
+    return result
+
+
+# Analytics Endpoints
+@api_router.get("/analytics/dashboard")
+async def get_dashboard(
+    user: Dict[str, str] = Depends(get_current_user),
+    time_range: str = Query("today"),
+) -> Dict[str, Any]:
+    """Get dashboard KPIs."""
+    require_permission(user["role"], "analytics")
+    kpis = await analytics_service.get_kpis(time_range)
+    return kpis
+
+
+@api_router.get("/analytics/inventory")
+async def get_inventory_metrics(
+    user: Dict[str, str] = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Get inventory metrics by category and zone."""
+    require_permission(user["role"], "inventory")
+    metrics = await analytics_service.get_inventory_metrics()
+    return metrics
+
+
+@api_router.get("/analytics/orders")
+async def get_order_metrics(
+    user: Dict[str, str] = Depends(get_current_user),
+    days: int = Query(30),
+) -> Dict[str, Any]:
+    """Get order fulfillment metrics."""
+    require_permission(user["role"], "orders")
+    metrics = await analytics_service.get_order_metrics(days)
+    return metrics
+
+
+@api_router.get("/analytics/performance-trends")
+async def get_performance_trends(
+    user: Dict[str, str] = Depends(get_current_user),
+    days: int = Query(30),
+) -> Dict[str, Any]:
+    """Get performance trend data."""
+    require_permission(user["role"], "analytics")
+    trends = await analytics_service.get_performance_trends(days)
+    return trends
+
+
+@api_router.get("/analytics/top-items")
+async def get_top_items(
+    user: Dict[str, str] = Depends(get_current_user),
+    limit: int = Query(10),
+) -> Dict[str, Any]:
+    """Get top moving items."""
+    require_permission(user["role"], "inventory")
+    items = await analytics_service.get_top_moving_items(limit)
+    return items
+
+
+@api_router.get("/analytics/low-stock")
+async def get_low_stock(
+    user: Dict[str, str] = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Get low stock items requiring attention."""
+    require_permission(user["role"], "inventory")
+    alerts = await analytics_service.get_low_stock_alerts()
+    return alerts
+
+
+# Include routers at the very bottom after ALL routes are defined
+app.include_router(api_router)
+app.include_router(create_layout_router(db, require_permission))
